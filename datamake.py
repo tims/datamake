@@ -118,5 +118,5 @@ class Job:
       print self.jobid, "finished"
   
 jobid = sys.argv[1]
-Job(jobid, {"year":2012, "month":10,"day":21}).build()
+Job(jobid, {}).build()
 
