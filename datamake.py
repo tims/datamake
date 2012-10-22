@@ -14,7 +14,20 @@ class Artifact:
 
   def delete(self):
     raise Exception("not implemented")
-  
+
+class HTTPArtifact(Artifact):
+  def __init__(self, url):
+    self.url = url
+
+  def exists(self):
+    r = requests.head(self.url)
+    if r.status_code == 404:
+      return False
+    elif r.status_code == 200 or r.status_code == 302:
+      return True
+    else:
+      raise Exception("Unexpected status code: %s" % r.status_code)
+
 class SSHArtifact(Artifact):
   def __init__(self, host, path):
     self.host = host
@@ -56,6 +69,8 @@ def resolve_artifact(uri):
     return SSHArtifact(parsed_uri.host, parsed_uri.path)
   elif parsed_uri.protocol == "file":
     return FileArtifact(parsed_uri.path)
+  elif parsed_uri.protocol == "http":
+    return HTTPArtifact(parsed_uri.source)
   else:
     return Artifact()
 
