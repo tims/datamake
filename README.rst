@@ -4,7 +4,7 @@ datamake
 
 This is an experiment, feedback welcome.
 
-A simple tool for managing parametrized job with data dependencies.
+A simple tool for managing parametrized job flows with data dependencies.
 
 Each job must specify an artifact with a URI and a command.
 
