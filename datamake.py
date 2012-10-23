@@ -144,8 +144,9 @@ class Job:
 
     self.dependencies = []
     for dependency_conf in jobconf.get("dependencies", []):
+      dependency_group = dependency_conf.get("group", self.group)
       for params in self.resolve_dependency_parameters(dependency_conf['parameters']):
-        job = job_factory.get_job(group, dependency_conf['id'], params)
+        job = job_factory.get_job(dependency_group, dependency_conf['id'], params)
         self.dependencies.append(job)
 
   def resolve_dependency_parameters(self, dependency_parameters):

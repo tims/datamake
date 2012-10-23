@@ -1,0 +1,20 @@
+[
+{
+  "id": "ls-local",
+  "command": "ls",
+  "artifact": "file:///bla.txt",
+  "dependencies": [ 
+    {
+      "id": "ls-vm",
+      "parameters": {
+        "hostname": ["of1-dev-tim","of1-dev-hadoop1","dc1-util-science1"]
+      }  
+    } 
+  ]
+},
+{
+  "id": "ls-vm",
+  "command": "ssh $hostname \"ls\"",
+  "artifact": "ssh://$hostname:bla.txt"
+}
+]
