@@ -6,6 +6,9 @@ from parse_uri import ParseUri
 from boto.s3.connection import S3Connection
     
 class Artifact:
+  def uri(self):
+    raise Exception("not implemented")
+    
   def exists(self):
     raise Exception("not implemented")
 
