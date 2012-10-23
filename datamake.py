@@ -139,8 +139,8 @@ class Job:
   def __init__(self, group, jobconf, parameters={}):
     self.group = group
     self.jobid = jobconf['id']
-    self.parameters = parameters.get('parameters',{})
-    self.parameters.update(parameters) # inherited parameters override
+    self.parameters = parameters
+    self.parameters.update(jobconf.get('parameters',{})) # inherited are overwritten by local parameters
     self.command = Template(jobconf["command"]).substitute(self.parameters)
     self.artifact = resolve_artifact(Template(jobconf["artifact"]).substitute(self.parameters))
 
