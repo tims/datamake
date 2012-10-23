@@ -1,4 +1,0 @@
-{
-  "command": "ssh $hostname \"ls\"",
-  "artifact": "ssh://$hostname:bla.txt"
-}

@@ -8,7 +8,7 @@ from boto.s3.connection import S3Connection
 class Artifact:
   def uri(self):
     raise Exception("not implemented")
-    
+
   def exists(self):
     raise Exception("not implemented")
 
@@ -46,7 +46,7 @@ class HTTPArtifact(Artifact):
     self.url = url
 
   def uri(self):
-    return url
+    return self.url
 
   def exists(self):
     r = requests.head(self.url)
@@ -119,26 +119,37 @@ def resolve_date(year,month,day,day_delta=0):
   dt = datetime.datetime(year,month,day) - datetime.timedelta(days=day_delta)
   return dt - delta
 
+class JobFactory:
+  def __init__(self, jobs_dir):
+    self.jobs_dir = jobs_dir
+
+  def get_job(self, group, job_id, parameters={}):
+    jobs_filename = os.path.join(self.jobs_dir, group + ".job")
+    jobs_file = open(jobs_filename)
+    conf = json.load(jobs_file)
+    for jobconf in conf:
+      if jobconf['id'] == job_id:
+        return Job(group, jobconf, parameters=parameters)
+    raise Exception("Job id not found %s" % job_id)
+
+job_factory = JobFactory("jobs")
+
 class Job:
-  def __init__(self, jobid, parameters={}):
+  def __init__(self, group, jobconf, parameters={}):
+    self.group = group
+    self.jobid = jobconf['id']
     self.parameters = parameters
-
-    jobs_dir = 'jobs'
-    job_filename = os.path.join(jobs_dir, jobid + ".job")
-    job_file = open(job_filename)
-    jobconf = json.load(job_file)
-
-    self.jobid = jobid
     self.command = Template(jobconf["command"]).substitute(self.parameters)
     self.artifact = resolve_artifact(Template(jobconf["artifact"]).substitute(self.parameters))
 
     self.dependencies = []
     for dependency_conf in jobconf.get("dependencies", []):
       for params in self.resolve_dependency_parameters(dependency_conf['parameters']):
-        self.dependencies.append(Job(dependency_conf['jobid'], params))
+        job = job_factory.get_job(group, dependency_conf['id'], params)
+        self.dependencies.append(job)
 
   def resolve_dependency_parameters(self, dependency_parameters):
-    print jobid, "resolving parameters"
+    print self.jobid, "resolving parameters"
     templated_params = {}
     for key, values in dependency_parameters.items():
       for value in values:
@@ -173,6 +184,10 @@ class Job:
       self.run()
       print self.jobid, "finished"
   
-jobid = sys.argv[1]
-Job(jobid, {}).build()
+job_group = sys.argv[1]
+job_id = sys.argv[2] if len(sys.argv) >= 3 else None
+job = job_factory.get_job(job_group, job_id)
+job.build()
+
+
 

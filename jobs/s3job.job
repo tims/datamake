@@ -1,4 +1,0 @@
-{
-  "command": "ls",
-  "artifact": "s3://songkick/test"
-}

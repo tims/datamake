@@ -1,4 +1,7 @@
+[
 {
+  "id": "ls",
   "command": "ls",
   "artifact": "http://www.google.com/"
 }
+]
