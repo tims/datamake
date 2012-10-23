@@ -1,13 +1,10 @@
-import sys
-import os
-import json
+import sys, os, datetime, json
+import collections, itertools
+from string import Template
 import requests
 from parse_uri import ParseUri
-from string import Template
-import collections
-import itertools
-import datetime
-
+from boto.s3.connection import S3Connection
+    
 class Artifact:
   def exists(self):
     raise Exception("not implemented")
@@ -15,9 +12,38 @@ class Artifact:
   def delete(self):
     raise Exception("not implemented")
 
+class S3Artifact(Artifact):
+  def __init__(self, bucket, key):
+    aws_credentials = json.load(open('aws_credentials.json'))
+    self.access_id = aws_credentials['access-id']
+    self.private_key = aws_credentials['private-key']
+    self.bucket = bucket
+    self.key = key
+
+  def uri(self):
+    return "s3://%s%s" % (self.bucket, self.key)
+
+  def exists(self):
+    from boto.s3.connection import S3Connection
+    conn = S3Connection(self.access_id, self.private_key)
+    b = conn.get_bucket(self.bucket)
+    if b.get_key(self.key):
+      return True
+    else:
+      return False
+
+  def delete(self):
+    from boto.s3.connection import S3Connection
+    conn = S3Connection(self.access_id, self.private_key)
+    b = conn.get_bucket(self.bucket)
+    b.delete_key(self.key)
+
 class HTTPArtifact(Artifact):
   def __init__(self, url):
     self.url = url
+
+  def uri(self):
+    return url
 
   def exists(self):
     r = requests.head(self.url)
@@ -28,18 +54,25 @@ class HTTPArtifact(Artifact):
     else:
       raise Exception("Unexpected status code: %s" % r.status_code)
 
+  def delete(self):
+    r = requests.delete(self.url)
+
 class SSHArtifact(Artifact):
   def __init__(self, host, path):
     self.host = host
     self.path = path
 
+  def uri(self):
+    return "ssh://%s/%s" % (self.host, self.path)
+ 
   def exists(self):
     # TODO: This should throw exceptions on any errors and only return False when we genuinely know the file is not there
     command = 'ssh %s "[ -f %s ]"' % (self.host, self.path)
     if not os.system(command):
       # file exists
       return True
-    return False
+    else:
+      return False
 
   def delete(self):
     command = 'ssh %s "rm %s"' % (self.host, self.path)
@@ -49,17 +82,20 @@ class FileArtifact(Artifact):
   def __init__(self, path):
     self.path = path
 
+  def uri(self):
+    return "file://%s" % (self.path)
+
   def exists(self):
     if not self.path:
       raise Exception("invalid path " + self.path)
     command = '[ -f %s ]' % self.path
     if not os.system(command):
       return True
-    return False
+    else:
+      return False
 
   def delete(self):
     command = 'rm %s' % self.path
-    print command
     os.system(command)
 
 def resolve_artifact(uri):
@@ -71,6 +107,8 @@ def resolve_artifact(uri):
     return FileArtifact(parsed_uri.path)
   elif parsed_uri.protocol == "http":
     return HTTPArtifact(parsed_uri.source)
+  elif parsed_uri.protocol == "s3":
+    return S3Artifact(parsed_uri.host, parsed_uri.path)
   else:
     return Artifact()
 
@@ -121,9 +159,9 @@ class Job:
 
   def build(self):
     if self.artifact.exists():
-      print self.jobid, "artifact present, nothing to do", sorted(self.artifact.__dict__.items())
+      print self.jobid, "artifact present, nothing to do", self.artifact.uri()
     else:
-      print self.jobid, "artifact not present", sorted(self.artifact.__dict__.items())
+      print self.jobid, "artifact not present", self.artifact.uri()
       print self.jobid, "checking dependencies"
       for dependency in self.dependencies:
         dependency.build()
