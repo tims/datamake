@@ -92,6 +92,7 @@ class FileArtifact(Artifact):
     if not self.path:
       raise Exception("invalid path " + self.path)
     command = '[ -f %s ]' % self.path
+    print "exists command:", command
     if not os.system(command):
       return True
     else:
@@ -138,14 +139,15 @@ class Job:
   def __init__(self, group, jobconf, parameters={}):
     self.group = group
     self.jobid = jobconf['id']
-    self.parameters = parameters
+    self.parameters = parameters.get('parameters',{})
+    self.parameters.update(parameters) # inherited parameters override
     self.command = Template(jobconf["command"]).substitute(self.parameters)
     self.artifact = resolve_artifact(Template(jobconf["artifact"]).substitute(self.parameters))
 
     self.dependencies = []
     for dependency_conf in jobconf.get("dependencies", []):
       dependency_group = dependency_conf.get("group", self.group)
-      for params in self.resolve_dependency_parameters(dependency_conf['parameters']):
+      for params in self.resolve_dependency_parameters(dependency_conf.get('parameters',{})):
         job = job_factory.get_job(dependency_group, dependency_conf['id'], params)
         self.dependencies.append(job)
 
@@ -163,6 +165,7 @@ class Job:
 
     for point in itertools.product(*templated_params.values()):
       params = dict(zip(templated_params.iterkeys(), point))
+      params.update(self.parameters)
       yield params
 
   def run(self):
@@ -185,10 +188,15 @@ class Job:
       self.run()
       print self.jobid, "finished"
   
-job_group = sys.argv[1]
-job_id = sys.argv[2] if len(sys.argv) >= 3 else None
-job = job_factory.get_job(job_group, job_id)
-job.build()
+
+if __name__ == "__main__":
+  job_group = sys.argv[1]
+  job_id = sys.argv[2] if len(sys.argv) >= 3 else None
+  params = {}
+  for arg in sys.argv[3:]:
+    params.update([arg.split("=")])
+  job = job_factory.get_job(job_group, job_id, params)
+  job.build()
 
 
 
