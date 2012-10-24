@@ -4,6 +4,7 @@ from string import Template
 import requests
 from parse_uri import ParseUri
 from boto.s3.connection import S3Connection
+import urllib
     
 class Artifact:
   def uri(self):
@@ -17,9 +18,6 @@ class Artifact:
 
 class S3Artifact(Artifact):
   def __init__(self, bucket, key):
-    aws_credentials = json.load(open('aws_credentials.json'))
-    self.access_id = aws_credentials['access-id']
-    self.private_key = aws_credentials['private-key']
     self.bucket = bucket
     self.key = key
 
@@ -28,7 +26,7 @@ class S3Artifact(Artifact):
 
   def exists(self):
     from boto.s3.connection import S3Connection
-    conn = S3Connection(self.access_id, self.private_key)
+    conn = S3Connection()
     b = conn.get_bucket(self.bucket)
     if b.get_key(self.key):
       return True
@@ -86,7 +84,7 @@ class FileArtifact(Artifact):
     self.path = path
 
   def uri(self):
-    return "file://%s" % (self.path)
+    return self.path
 
   def exists(self):
     if not self.path:
@@ -107,48 +105,43 @@ def resolve_artifact(uri):
   parsed_uri = uri_parser.parse(uri)  
   if parsed_uri.protocol == "ssh":
     return SSHArtifact(parsed_uri.host, parsed_uri.path)
-  elif parsed_uri.protocol == "file":
-    return FileArtifact(parsed_uri.path)
   elif parsed_uri.protocol == "http":
     return HTTPArtifact(parsed_uri.source)
   elif parsed_uri.protocol == "s3":
     return S3Artifact(parsed_uri.host, parsed_uri.path)
   else:
-    return Artifact()
+    return FileArtifact(uri)
 
 def resolve_date(year,month,day,day_delta=0):
   dt = datetime.datetime(year,month,day) - datetime.timedelta(days=day_delta)
   return dt - delta
 
 class JobFactory:
-  def __init__(self, jobs_dir):
-    self.jobs_dir = jobs_dir
+  def __init__(self, jobs_filename):
+    self.jobs_filename = jobs_filename
 
-  def get_job(self, group, job_id, parameters={}):
-    jobs_filename = os.path.join(self.jobs_dir, group + ".job")
-    jobs_file = open(jobs_filename)
+  def get_job(self, job_id, parameters={}):
+    jobs_file = open(self.jobs_filename)
     conf = json.load(jobs_file)
     for jobconf in conf:
       if jobconf['id'] == job_id:
-        return Job(group, jobconf, parameters=parameters)
+        return Job(jobconf, parameters=parameters)
     raise Exception("Job id not found %s" % job_id)
 
-job_factory = JobFactory("jobs")
+job_factory = None
 
 class Job:
-  def __init__(self, group, jobconf, parameters={}):
-    self.group = group
+  def __init__(self, jobconf, parameters={}):
     self.jobid = jobconf['id']
     self.parameters = parameters
     self.parameters.update(jobconf.get('parameters',{})) # inherited are overwritten by local parameters
-    self.command = Template(jobconf["command"]).substitute(self.parameters)
-    self.artifact = resolve_artifact(Template(jobconf["artifact"]).substitute(self.parameters))
+    self.command = Template(jobconf["command"]).substitute(self.parameters) if "command" in jobconf else None
+    self.artifact = resolve_artifact(Template(jobconf["artifact"]).substitute(self.parameters)) if "artifact" in jobconf else None
 
     self.dependencies = []
     for dependency_conf in jobconf.get("dependencies", []):
-      dependency_group = dependency_conf.get("group", self.group)
       for params in self.resolve_dependency_parameters(dependency_conf.get('parameters',{})):
-        job = job_factory.get_job(dependency_group, dependency_conf['id'], params)
+        job = job_factory.get_job(dependency_conf['id'], params)
         self.dependencies.append(job)
 
   def resolve_dependency_parameters(self, dependency_parameters):
@@ -176,26 +169,31 @@ class Job:
       sys.exit(ret)
 
   def build(self):
-    if self.artifact.exists():
-      print self.jobid, "artifact present, nothing to do", self.artifact.uri()
-    else:
-      print self.jobid, "artifact not present", self.artifact.uri()
-      print self.jobid, "checking dependencies"
-      for dependency in self.dependencies:
-        dependency.build()
-    
+    if self.artifact:
+      if self.artifact.exists():
+        print self.jobid, "artifact present, nothing to do.", self.artifact.uri()
+        return
+      else:
+        print self.jobid, "artifact not present.", self.artifact.uri()
+
+    print self.jobid, "checking dependencies"
+    for dependency in self.dependencies:
+      dependency.build()
+  
+    if self.command:
       print self.jobid, "Starting with parameters", self.parameters
       self.run()
       print self.jobid, "finished"
   
 
 if __name__ == "__main__":
-  job_group = sys.argv[1]
+  job_file = sys.argv[1]
   job_id = sys.argv[2] if len(sys.argv) >= 3 else None
   params = {}
   for arg in sys.argv[3:]:
     params.update([arg.split("=")])
-  job = job_factory.get_job(job_group, job_id, params)
+  job_factory = JobFactory(job_file)
+  job = job_factory.get_job(job_id, params)
   job.build()
 
 
