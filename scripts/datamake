@@ -1,0 +1,3 @@
+#!python
+import sys,datamake
+datamake.main(sys.argv)

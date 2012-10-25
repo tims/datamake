@@ -185,16 +185,16 @@ class Job:
       self.run()
       print self.jobid, "finished"
   
-
-if __name__ == "__main__":
-  job_file = sys.argv[1]
-  job_id = sys.argv[2]
+def main(args):
+  job_file = args[1]
+  job_id = args[2]
   params = {}
-  for arg in sys.argv[3:]:
+  for arg in args[3:]:
     params.update([arg.split("=")])
   job_factory = JobFactory(job_file)
   job = job_factory.get_job(job_id, params)
   job.build()
 
-
+if __name__ == "__main__":
+  main(sys.argv)
 
