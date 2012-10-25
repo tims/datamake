@@ -6,5 +6,5 @@ setup(name='datamake',
   url='https://github.com/tims/datamake',
   py_modules=['datamake'],
   scripts=['scripts/datamake'],
-  requires=['requests','boto','pyparseuri','simplejson']
+  install_requires=['requests','boto','pyparseuri','simplejson']
 )
