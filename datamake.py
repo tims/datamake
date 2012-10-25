@@ -122,14 +122,42 @@ def resolve_date(year,month,day,day_delta=0):
 class JobFactory:
   def __init__(self, jobs_filename):
     self.jobs_filename = jobs_filename
+    jobs_file = open(self.jobs_filename)
+    self.conf = json.load(jobs_file)
+    jobs_file.close()
 
   def get_job(self, job_id, parameters={}):
-    jobs_file = open(self.jobs_filename)
-    conf = json.load(jobs_file)
-    for jobconf in conf:
+    for jobconf in self.conf:
       if jobconf['id'] == job_id:
-        return Job(jobconf, parameters=parameters)
+        jobid = jobconf['id']
+        job_parameters = dict(parameters)
+        job_parameters.update(jobconf.get('parameters',{})) # inherited are overwritten by local parameters
+        command = Template(jobconf["command"]).substitute(job_parameters) if "command" in jobconf else None
+        artifact = resolve_artifact(Template(jobconf["artifact"]).substitute(job_parameters)) if "artifact" in jobconf else None
+        dependencies = []
+        for dependency_conf in jobconf.get("dependencies", []):
+          print jobid, "resolving parameters"
+          for params in self.resolve_dependency_parameters(dependency_conf.get('parameters',{}), job_parameters):
+            job = self.get_job(dependency_conf['id'], params)
+            dependencies.append(job)
+        return Job(jobid=jobid, command=command, artifact=artifact, dependencies=dependencies)
     raise Exception("Job id not found %s" % job_id)
+
+  def resolve_dependency_parameters(self, dependency_parameters, inherited_parameters):
+    templated_params = {}
+    for key, values in dependency_parameters.items():
+      for value in values:
+        try:
+          value = Template(value).substitute(inherited_parameters)
+        except KeyError, e:
+          print "Could not resolve template parameter", e
+          raise
+        templated_params[key] = templated_params.get(key, []) + [value]
+
+    for point in product(*templated_params.values()):
+      params = dict(zip(templated_params.iterkeys(), point))
+      params.update(inherited_parameters)
+      yield params
 
 job_factory = None
 
@@ -145,35 +173,11 @@ def product(*args, **kwds):
         yield tuple(prod)
 
 class Job:
-  def __init__(self, jobconf, parameters={}):
-    self.jobid = jobconf['id']
-    self.parameters = parameters
-    self.parameters.update(jobconf.get('parameters',{})) # inherited are overwritten by local parameters
-    self.command = Template(jobconf["command"]).substitute(self.parameters) if "command" in jobconf else None
-    self.artifact = resolve_artifact(Template(jobconf["artifact"]).substitute(self.parameters)) if "artifact" in jobconf else None
-
-    self.dependencies = []
-    for dependency_conf in jobconf.get("dependencies", []):
-      for params in self.resolve_dependency_parameters(dependency_conf.get('parameters',{})):
-        job = job_factory.get_job(dependency_conf['id'], params)
-        self.dependencies.append(job)
-
-  def resolve_dependency_parameters(self, dependency_parameters):
-    print self.jobid, "resolving parameters"
-    templated_params = {}
-    for key, values in dependency_parameters.items():
-      for value in values:
-        try:
-          value = Template(value).substitute(self.parameters)
-        except KeyError, e:
-          print "Could not resolve template parameter", e
-          raise
-        templated_params[key] = templated_params.get(key, []) + [value]
-
-    for point in product(*templated_params.values()):
-      params = dict(zip(templated_params.iterkeys(), point))
-      params.update(self.parameters)
-      yield params
+  def __init__(self, jobid, command, artifact, dependencies=[]):
+    self.jobid = jobid
+    self.command = command
+    self.artifact = artifact
+    self.dependencies = dependencies
 
   def run(self):
     print self.jobid, "command:", self.command
@@ -195,7 +199,7 @@ class Job:
       dependency.build()
   
     if self.command:
-      print self.jobid, "Starting with parameters", self.parameters
+      print self.jobid, "Starting"
       self.run()
       print self.jobid, "finished"
   
