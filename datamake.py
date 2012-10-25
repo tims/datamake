@@ -1,4 +1,8 @@
-import sys, os, datetime, json
+import sys, os, datetime
+try:
+    import json
+except ImportError:
+    import simplejson as json
 import collections, itertools
 from string import Template
 import requests
