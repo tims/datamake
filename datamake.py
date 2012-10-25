@@ -188,7 +188,7 @@ class Job:
 
 if __name__ == "__main__":
   job_file = sys.argv[1]
-  job_id = sys.argv[2] if len(sys.argv) >= 3 else None
+  job_id = sys.argv[2]
   params = {}
   for arg in sys.argv[3:]:
     params.update([arg.split("=")])

@@ -2,7 +2,7 @@
 {
   "id": "ls-local",
   "command": "ls",
-  "artifact": "file:///bla.txt",
+  "artifact": "/tmp/bla.txt",
   "dependencies": [ 
     {
       "id": "ls-vm",
@@ -15,6 +15,6 @@
 {
   "id": "ls-vm",
   "command": "ssh $hostname \"ls\"",
-  "artifact": "ssh://$hostname:bla.txt"
+  "artifact": "ssh://$hostname:/tmp/bla.txt"
 }
 ]
