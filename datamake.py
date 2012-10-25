@@ -8,6 +8,7 @@ import requests
 from parse_uri import ParseUri
 from boto.s3.connection import S3Connection
 import urllib
+import subprocess
     
 class Artifact:
   def uri(self):
@@ -181,10 +182,7 @@ class Job:
 
   def run(self):
     print self.jobid, "command:", self.command
-    ret = os.system(self.command)
-    if ret:
-      print "Error",ret
-      sys.exit(ret)
+    subprocess.check_call(self.command, shell=True)
 
   def build(self):
     if self.artifact:
