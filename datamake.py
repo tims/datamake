@@ -3,7 +3,6 @@ try:
     import json
 except ImportError:
     import simplejson as json
-import collections, itertools
 from string import Template
 import requests
 from parse_uri import ParseUri
@@ -134,6 +133,17 @@ class JobFactory:
 
 job_factory = None
 
+# itertools.product for python 2.5
+def product(*args, **kwds):
+    # product('ABCD', 'xy') --> Ax Ay Bx By Cx Cy Dx Dy
+    # product(range(2), repeat=3) --> 000 001 010 011 100 101 110 111
+    pools = map(tuple, args) * kwds.get('repeat', 1)
+    result = [[]]
+    for pool in pools:
+        result = [x+[y] for x in result for y in pool]
+    for prod in result:
+        yield tuple(prod)
+
 class Job:
   def __init__(self, jobconf, parameters={}):
     self.jobid = jobconf['id']
@@ -160,7 +170,7 @@ class Job:
           raise
         templated_params[key] = templated_params.get(key, []) + [value]
 
-    for point in itertools.product(*templated_params.values()):
+    for point in product(*templated_params.values()):
       params = dict(zip(templated_params.iterkeys(), point))
       params.update(self.parameters)
       yield params
