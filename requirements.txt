@@ -1,4 +1,0 @@
-requests==0.13.1
-pyparseuri==0.1
-boto==2.5.2
-simplejson==2.6.2
