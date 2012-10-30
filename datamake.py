@@ -144,13 +144,16 @@ class JobFactory:
         job_parameters.update(jobconf.get('parameters',{})) # inherited are overwritten by local parameters
         command = Template(jobconf["command"]).substitute(job_parameters) if "command" in jobconf else None
         artifact = resolve_artifact(Template(jobconf["artifact"]).substitute(job_parameters)) if "artifact" in jobconf else None
+        is_artifact_temporary = jobconf.get('is_artifact_temporary', False)
+        if not (is_artifact_temporary == True or is_artifact_temporary == False):
+          raise "Job %s has invalid value %s for is_artifact_temporary" % (jobid, is_artifact_temporary)
         dependencies = []
         for dependency_conf in jobconf.get("dependencies", []):
           print jobid, "resolving parameters"
           for params in self.resolve_dependency_parameters(dependency_conf.get('parameters',{}), job_parameters):
             job = self.get_job(dependency_conf['id'], params)
             dependencies.append(job)
-        return Job(jobid=jobid, command=command, artifact=artifact, dependencies=dependencies)
+        return Job(jobid=jobid, command=command, artifact=artifact, dependencies=dependencies, is_artifact_temporary=is_artifact_temporary)
     raise Exception("Job id not found %s" % job_id)
 
   def resolve_dependency_parameters(self, dependency_parameters, inherited_parameters):
@@ -193,15 +196,22 @@ def product(*args, **kwds):
         yield tuple(prod)
 
 class Job:
-  def __init__(self, jobid, command, artifact, dependencies=[]):
+  def __init__(self, jobid, command, artifact, dependencies=[], is_artifact_temporary=False):
     self.jobid = jobid
     self.command = command
     self.artifact = artifact
     self.dependencies = dependencies
+    self.is_artifact_temporary = is_artifact_temporary
+    
 
   def run(self):
     print self.jobid, "command:", self.command
     subprocess.check_call(self.command, shell=True)
+
+  def cleanup(self):
+    if self.artifact and self.is_artifact_temporary:
+      print self.jobid, "cleaning up", self.artifact.uri()
+      self.artifact.delete()
 
   def build(self):
     if self.artifact:
@@ -214,11 +224,16 @@ class Job:
     print self.jobid, "checking dependencies"
     for dependency in self.dependencies:
       dependency.build()
-  
+
     if self.command:
       print self.jobid, "Starting"
       self.run()
       print self.jobid, "finished"
+
+    for dependency in self.dependencies:
+      dependency.cleanup()
+
+
   
 def main(args):
   job_file = args[1]

@@ -1,11 +1,9 @@
 [
   {
-    "id": "ls-local",
-    "command": "echo done",
-    "artifact": "/tmp/bla.txt",
+    "id": "main",
     "dependencies": [ 
       {
-        "id": "ls-vm",
+        "id": "mktmp",
         "parameters": {
           "date": "=(date_days_delta(date_now(), -i) for i in range(10))"
         }  
@@ -13,7 +11,9 @@
     ]
   },
   {
-    "id": "ls-vm",
-    "command": "echo $date"
+    "id": "mktmp",
+    "command": "touch /tmp/bla-${date}.txt && echo touching /tmp/bla-${date}.txt",
+    "artifact": "/tmp/bla-${date}.txt",
+    "is_artifact_temporary": true
   }
 ]
