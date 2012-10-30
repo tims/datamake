@@ -9,7 +9,16 @@ from parse_uri import ParseUri
 from boto.s3.connection import S3Connection
 import urllib
 import subprocess
-    
+
+def date_now():  
+  dt = datetime.datetime.now()
+  return dt.strftime("%Y-%m-%d")
+
+def date_days_delta(datestring, days_delta):
+  dt = datetime.datetime.strptime(datestring, "%Y-%m-%d")
+  delta = datetime.timedelta(int(days_delta))
+  return (dt + delta).strftime("%Y-%m-%d")
+
 class Artifact:
   def uri(self):
     raise Exception("not implemented")
@@ -146,14 +155,23 @@ class JobFactory:
 
   def resolve_dependency_parameters(self, dependency_parameters, inherited_parameters):
     templated_params = {}
-    for key, values in dependency_parameters.items():
-      for value in values:
-        try:
-          value = Template(value).substitute(inherited_parameters)
-        except KeyError, e:
-          print "Could not resolve template parameter", e
-          raise
+    for key, value in dependency_parameters.items():
+      try:
+        value = Template(value).substitute(inherited_parameters)
+      except KeyError, e:
+        print "Could not resolve template parameter", e
+        raise
+      if not value.startswith("="):
         templated_params[key] = templated_params.get(key, []) + [value]
+      else:
+        eval_value = eval(value[1:])
+        if isinstance(eval_value, basestring):
+          templated_params[key] = templated_params.get(key, []) + [eval_value]
+        elif hasattr(eval_value, "__iter__"):
+          for v in eval_value:
+            templated_params[key] = templated_params.get(key, []) + [v]
+        else:
+          raise "Unable to handle evalutation of parameter, must be string or iterable: %s = %s" % (key, eval_value)
 
     for point in product(*templated_params.values()):
       params = dict(zip(templated_params.iterkeys(), point))

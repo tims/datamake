@@ -1,20 +1,19 @@
 [
-{
-  "id": "ls-local",
-  "command": "ls",
-  "artifact": "/tmp/bla.txt",
-  "dependencies": [ 
-    {
-      "id": "ls-vm",
-      "parameters": {
-        "hostname": ["of1-dev-tim","of1-dev-hadoop1","dc1-util-science1"]
-      }  
-    } 
-  ]
-},
-{
-  "id": "ls-vm",
-  "command": "ssh $hostname \"ls\"",
-  "artifact": "ssh://$hostname:/tmp/bla.txt"
-}
+  {
+    "id": "ls-local",
+    "command": "echo done",
+    "artifact": "/tmp/bla.txt",
+    "dependencies": [ 
+      {
+        "id": "ls-vm",
+        "parameters": {
+          "date": "=(date_days_delta(date_now(), -i) for i in range(10))"
+        }  
+      } 
+    ]
+  },
+  {
+    "id": "ls-vm",
+    "command": "echo $date"
+  }
 ]
