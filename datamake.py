@@ -175,7 +175,8 @@ class JobFactory:
 
     for point in product(*templated_params.values()):
       params = dict(zip(templated_params.iterkeys(), point))
-      params.update(inherited_parameters)
+      for k,v in inherited_parameters:
+        if k not in params: params[k] = v
       yield params
 
 job_factory = None
