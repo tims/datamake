@@ -12,6 +12,6 @@ When a job "builds": it checks it's artifact does not exist, builds it's depende
 
 This is not a scheduler. 
 
-My current thinking is that the downstream jobs are the ones scheduled by cron / citrine / something else and they run any upstream jobs. So they pull downstream rather than push. Citrine's simple dependencies are push only. I think you can have both, but you need a tool that knows about all .job files so it can find the downstream jobs.
+My current thinking is that the downstream jobs are the ones scheduled by cron / citrine / something else and they run any upstream jobs. So they pull downstream rather than push. Citrine's simple dependencies are push only.
 
 Currently a job can depend on multiple jobs, but multiple jobs can't depend on the same job. The next step is to separate job flow representation from execution so it can choose the next job to run with complete knowledge of the flow.
