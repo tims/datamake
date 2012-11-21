@@ -140,8 +140,12 @@ class JobFactory:
     for jobconf in self.conf:
       if jobconf['id'] == job_id:
         jobid = jobconf['id']
-        job_parameters = dict(parameters)
-        job_parameters.update(jobconf.get('parameters',{})) # inherited are overwritten by local parameters
+        
+        job_parameters.update(jobconf.get('parameters',{}))
+        for k,v in job_parameters.items():
+          v = Template(v).substitute(parameters)
+        job_parameters.update(dict(parameters))
+
         command = Template(jobconf["command"]).substitute(job_parameters) if "command" in jobconf else None
         artifact = resolve_artifact(Template(jobconf["artifact"]).substitute(job_parameters)) if "artifact" in jobconf else None
         is_artifact_temporary = jobconf.get('is_artifact_temporary', False)
