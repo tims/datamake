@@ -143,7 +143,7 @@ class JobFactory:
         
         job_parameters = jobconf.get('parameters',{})
         for k,v in job_parameters.items():
-          v = Template(v).substitute(parameters)
+          job_parameters[k] = Template(v).substitute(parameters)
         job_parameters.update(dict(parameters))
 
         command = Template(jobconf["command"]).substitute(job_parameters) if "command" in jobconf else None
