@@ -142,10 +142,9 @@ class JobFactory:
         jobid = jobconf['id']
         
         job_parameters = jobconf.get('parameters',{})
-        job_parameters = dict(parameters)
         for k,v in job_parameters.items():
           v = Template(v).substitute(parameters)
-        job_parameters.update(parameters)
+        job_parameters.update(dict(parameters))
 
         command = Template(jobconf["command"]).substitute(job_parameters) if "command" in jobconf else None
         artifact = resolve_artifact(Template(jobconf["artifact"]).substitute(job_parameters)) if "artifact" in jobconf else None
