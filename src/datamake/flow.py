@@ -37,13 +37,22 @@ class FlowManager:
       for dependency in task.dependencies:
         self.task_graph.add_edge(dependency['id'], task.id)
 
+
   def execute_flow(self, id, parameters):
     flow = self.build_flow(id, parameters=parameters)
+    execution_tree = nx.DiGraph()
+    for a,b in nx.bfs_edges(flow.reverse(), id):
+      print a,b
+      execution_tree.add_edge(a,b)
+
+
+    print execution_tree.edges()
     execution_order = [id] + list(b for a,b in nx.bfs_edges(flow.reverse(), id))
     execution_order.reverse()
     print 'Execution_order:'
     for task in execution_order:
       print "\t",task
+
     print "Starting task flow"
     for taskid in execution_order:
       print
@@ -54,7 +63,6 @@ class FlowManager:
       else:
         self.execute_task(taskid, {})
       print "End task:", taskid
-
 
   def execute_task(self, id, parameters):
     task = self.tasks[id]
