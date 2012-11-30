@@ -2,6 +2,10 @@ import networkx as nx
 import json
 import datetime
 from string import Template
+from boto.s3.connection import S3Connection
+import os
+import re
+import subprocess
 
 def date_now():  
   dt = datetime.datetime.now()
@@ -37,45 +41,75 @@ class FlowManager:
       for dependency in task.dependencies:
         self.task_graph.add_edge(dependency['id'], task.id)
 
+  def template(self, template_string, parameters):
+    if template_string and parameters:
+      return Template(template_string).substitute(parameters)
+    else:
+      return template_string
+
+  def get_execution_order(self, id, flow):
+    if id in flow:
+      execution_order = [id] + list(b for a,b in nx.bfs_edges(flow.reverse(), id))
+      execution_order.reverse()
+    else:
+      execution_order = []
+    return execution_order
 
   def execute_flow(self, id, parameters):
     flow = self.build_flow(id, parameters=parameters)
-    execution_tree = nx.DiGraph()
-    for a,b in nx.bfs_edges(flow.reverse(), id):
-      print a,b
-      execution_tree.add_edge(a,b)
 
+    execution_order = get_execution_order(id, flow)
+    
+    delete_after_use_artifacts = []
+    remove_tasks = []
+    for taskid in execution_order:
+      if taskid in flow:
+        task = self.tasks[taskid]
+        needs_execution_params = []
+        print "Checking artifacts for task", taskid
+        for task_parameters in flow.node[taskid].get('params', [{}]):
+          if task.artifact is not None:
+            artifact = resolve_artifact(self.template(task.artifact, task_parameters))
+            if task.delete_after_use:
+              delete_after_use_artifacts.append(artifact)
+            exists = artifact.exists()
+            print "Checking artifact: " + str(artifact.uri())
+            print "found"  if exists else "not found"
+          else:
+            exists = False
+          if not exists:
+            needs_execution_params.append(task_parameters)
+        if needs_execution_params:
+          flow.node[taskid]['params'] = needs_execution_params
+        else: 
+          remove_tasks.append(taskid)
+    
+    print "remove tasks", remove_tasks
+    for taskid in remove_tasks:
+      if taskid in flow:
+        subtree = list(nx.dfs_preorder_nodes(flow.reverse(), taskid))
+        print "Trimming tasks from execution tree:", " ".join(map(str,subtree))
+        flow.remove_nodes_from(subtree)
 
-    print execution_tree.edges()
-    execution_order = [id] + list(b for a,b in nx.bfs_edges(flow.reverse(), id))
-    execution_order.reverse()
-    print 'Execution_order:'
-    for task in execution_order:
-      print "\t",task
+    execution_order = get_execution_order(id, flow)
 
     print "Starting task flow"
     for taskid in execution_order:
-      print
-      print "Begin task:", taskid
-      if 'params' in flow.node[taskid]:
-        for task_parameters in flow.node[taskid]['params']:
-          self.execute_task(taskid, task_parameters)
-      else:
-        self.execute_task(taskid, {})
+      task = self.tasks[taskid]
+      for task_parameters in flow.node[taskid]['params']:
+        self.execute_task(task.command, task_parameters)
       print "End task:", taskid
 
-  def execute_task(self, id, parameters):
-    task = self.tasks[id]
-    
-    if task.artifact is not None:
-      artifact = Template(task.artifact).substitute(parameters)
+    for artifact in delete_after_use_artifacts:
+      print "deleting", artifact.uri()
 
-    if not task.command: return
+  def execute_task(self, command, parameters):
+    print "executing"
+    if command:
+      command = Template(command).substitute(parameters)
+      print command
+      subprocess.check_call(command, shell=True)
 
-    command = Template(task.command).substitute(parameters)
-    
-    print "Parameters:", json.dumps(parameters)
-    print "Command:", command
 
   def build_flow(self, id, flow_graph=None, parameters={}):
     task = self.tasks[id]
@@ -143,6 +177,89 @@ def product(*args, **kwds):
         result = [x+[y] for x in result for y in pool]
     for prod in result:
         yield tuple(prod)
+
+
+class Artifact:
+  def uri(self):
+    raise Exception("not implemented")
+
+  def exists(self):
+    raise Exception("not implemented")
+
+  def delete(self):
+    raise Exception("not implemented")
+
+class S3Artifact(Artifact):
+  def __init__(self, uri):
+    self.uri = uri
+    pattern = re.compile('s3://(.+?)/(.+)')
+    self.bucket, self.key = pattern.match(uri).groups()
+
+  def uri(self):
+    return self.uri
+
+  def exists(self):
+    from boto.s3.connection import S3Connection
+    conn = S3Connection()
+    b = conn.get_bucket(self.bucket)
+    if b.get_key(self.key):
+      return True
+    else:
+      return False
+
+  def delete(self):
+    from boto.s3.connection import S3Connection
+    conn = S3Connection(self.access_id, self.private_key)
+    b = conn.get_bucket(self.bucket)
+    b.delete_key(self.key)
+
+class HTTPArtifact(Artifact):
+  def __init__(self, url):
+    self.url = url
+
+  def uri(self):
+    return self.url
+
+  def exists(self):
+    r = requests.head(self.url)
+    if r.status_code == 404:
+      return False
+    elif r.status_code == 200 or r.status_code == 302:
+      return True
+    else:
+      raise Exception("Unexpected status code: %s" % r.status_code)
+
+  def delete(self):
+    r = requests.delete(self.url)
+
+  def delete(self):
+    command = 'ssh %s "rm %s"' % (self.host, self.path)
+    os.system(command)
+
+class FileArtifact(Artifact):
+  def __init__(self, path):
+    self.path = path
+
+  def uri(self):
+    return self.path
+
+  def exists(self):
+    if not self.path:
+      raise Exception("invalid path " + self.path)
+    return os.path.exists(self.path)
+
+  def delete(self):
+    command = 'rm %s' % self.path
+    os.system(command)
+
+def resolve_artifact(uri):
+  if uri.startswith("http://"):
+    return HTTPArtifact(uri)
+  elif uri.startswith("s3://"):
+    return S3Artifact(uri)
+  else:
+    return FileArtifact(uri)
+
 
 if __name__ == "__main__":
   import sys
