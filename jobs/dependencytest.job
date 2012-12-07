@@ -1,19 +1,15 @@
 [
   {
     "id": "main",
+    "command": "cat /tmp/bla-*.txt > /tmp/main-dates.txt",
     "dependencies": [ 
-      {
-        "id": "mktmp",
-        "parameters": {
-          "date": "=(date_days_delta(date_now(), -i) for i in range(10))"
-        }  
-      } 
+      {"id": "mktmp", "date": "=(date_days_delta(date_now(), -i) for i in range(10))"}
     ]
   },
   {
     "id": "mktmp",
-    "command": "touch /tmp/bla-${date}.txt && echo touching /tmp/bla-${date}.txt",
+    "command": "echo \"date = ${date}\" > /tmp/bla-${date}.txt && echo touching /tmp/bla-${date}.txt",
     "artifact": "/tmp/bla-${date}.txt",
-    "is_artifact_temporary": true
+    "delete_after_use": true
   }
 ]
