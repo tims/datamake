@@ -1,6 +1,5 @@
 import networkx as nx
 import json
-import datetime
 from string import Template
 
 def date_now():  
@@ -21,7 +20,7 @@ class Task:
     self.parameters = kvargs
     self.delete_after_use = delete_after_use
 
-class FlowManager:
+class DataMaker:
   def __init__(self):
     self.tasks = {}
     self.task_graph = nx.DiGraph()
@@ -38,7 +37,7 @@ class FlowManager:
         self.task_graph.add_edge(dependency['id'], task.id)
 
 
-  def execute_flow(self, id, parameters):
+  def make(self, id, parameters):
     flow = self.build_flow(id, parameters=parameters)
     execution_tree = nx.DiGraph()
     for a,b in nx.bfs_edges(flow.reverse(), id):
@@ -146,9 +145,9 @@ def product(*args, **kwds):
 
 if __name__ == "__main__":
   import sys
-  flowman = FlowManager()
-  flowman.load_tasks(sys.argv[1])
+  maker = DataMaker()
+  maker.load_tasks(sys.argv[1])
   id = sys.argv[2]
   params = dict(x.split("=") for x in sys.argv[3:])
-  flowman.execute_flow(id, params)
+  maker.make(id, params)
 
