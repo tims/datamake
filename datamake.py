@@ -9,6 +9,7 @@ from parse_uri import ParseUri
 from boto.s3.connection import S3Connection
 import urllib
 import subprocess
+import oursql
 
 def date_now():  
   dt = datetime.datetime.now()
@@ -71,6 +72,44 @@ class HTTPArtifact(Artifact):
   def delete(self):
     r = requests.delete(self.url)
 
+
+class MysqlArtifact(Artifact):
+  def __init__(self, uri):
+    uri_parser = ParseUri()
+    parsed_uri = uri_parser.parse(uri)  
+    params = {}
+    if parsed_uri.host:
+      params['host'] = parsed_uri.host
+    if parsed_uri.user:
+      params['user'] = parsed_uri.user
+    if parsed_uri.password:
+      params['passwd'] = parsed_uri.password
+    if parsed_uri.port:
+      params['port'] = parsed_uri.port
+    database, query = parsed_uri.path.split('/')[1:]
+    params['db'] = database
+    self.connection_params = params
+    self.query = query
+    self.parsed_uri = parsed_uri
+
+  def uri(self):
+    return self.parsed_uri.source
+
+  def exists(self):
+    conn = oursql.connect(**self.connection_params)
+    curs = conn.cursor()
+    print "Executing query", self.query
+    curs.execute(self.query)
+    rows = curs.fetchall()
+    print rows
+    if len(rows) > 0:
+      return True
+    else:
+      return False
+
+  def delete(self):
+    raise Exception("not implemented")
+
 class SSHArtifact(Artifact):
   def __init__(self, host, path):
     self.host = host
@@ -122,6 +161,8 @@ def resolve_artifact(uri):
     return HTTPArtifact(parsed_uri.source)
   elif parsed_uri.protocol == "s3":
     return S3Artifact(parsed_uri.host, parsed_uri.path)
+  elif parsed_uri.protocol == "mysql":
+    return MysqlArtifact(uri)
   else:
     return FileArtifact(uri)
 
