@@ -1,6 +1,5 @@
 import networkx as nx
 import json
-import datetime
 from string import Template
 from boto.s3.connection import S3Connection
 import os
@@ -25,7 +24,7 @@ class Task:
     self.parameters = kvargs
     self.delete_after_use = delete_after_use
 
-class FlowManager:
+class DataMaker:
   def __init__(self):
     self.tasks = {}
     self.task_graph = nx.DiGraph()
@@ -55,7 +54,7 @@ class FlowManager:
       execution_order = []
     return execution_order
 
-  def execute_flow(self, id, parameters):
+  def make(self, id, parameters):
     flow = self.build_flow(id, parameters=parameters)
 
     execution_order = get_execution_order(id, flow)
@@ -263,9 +262,9 @@ def resolve_artifact(uri):
 
 if __name__ == "__main__":
   import sys
-  flowman = FlowManager()
-  flowman.load_tasks(sys.argv[1])
+  maker = DataMaker()
+  maker.load_tasks(sys.argv[1])
   id = sys.argv[2]
   params = dict(x.split("=") for x in sys.argv[3:])
-  flowman.execute_flow(id, params)
+  maker.make(id, params)
 
