@@ -251,7 +251,7 @@ class Job:
 
   def run(self):
     print self.jobid, "command:", self.command
-    subprocess.check_call(self.command, shell=True)
+    subprocess.check_call("set -e; set -o pipefail; " + self.command, shell=True)
 
   def cleanup(self):
     if self.artifact and self.is_artifact_temporary:
