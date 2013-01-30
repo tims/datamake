@@ -251,7 +251,13 @@ class Job:
 
   def run(self):
     print self.jobid, "command:", self.command
-    subprocess.check_call("set -e; set -o pipefail; " + self.command, shell=True)
+    command = "set -e; set -o pipefail; " + self.command
+    p = subprocess.Popen([command], shell=True, executable = 'bash',)
+    p.communicate()[0]
+    resp = vars(p)
+    if resp['returncode']:
+      print "command exited with no zero status %s" % resp['returncode']
+      sys.exit(resp['returncode'])
 
   def cleanup(self):
     if self.artifact and self.is_artifact_temporary:
