@@ -3,11 +3,11 @@ import artifacts
 from task import TaskGraph, TaskTemplate
 
 class DatamakeConfig(object):
-  def __init__(self, filename):
-    self.filename = filename
+  def load(self, input_file):
+    self.config = json.load(input_file)
 
-  def load(self):
-    self.config = json.load(open(self.filename))
+  def load_from_file(self, input_filename):
+    self.load(open(input_filename))
 
   def task_graph(self):
     task_graph = TaskGraph()
@@ -27,12 +27,16 @@ class DatamakeConfig(object):
     return task_graph
 
 if __name__ == '__main__':
-  dmconf = DatamakeConfig(sys.argv[1])
-  dmconf.load()
+  config_filename = sys.argv[1]
+  task_id = sys.argv[2]
+  params = dict(param.split('=') for param in sys.argv[3:])
+
+  dmconf = DatamakeConfig()
+  dmconf.load(config_filename)
   task_graph = dmconf.task_graph()
-  
-  params = dict(param.split('=') for param in sys.argv[2:])
-  tasks = task_graph.resolve_subgraph('deploy-science', params)
+  tasks = task_graph.resolve_subgraph(task_id, params)
+
   for task in tasks:
     print json.dumps(task.__dict__, indent=True, default=lambda x: x.uri() if isinstance(x, artifacts.Artifact) else x.__dict__)
   task_graph.draw_graph("graph.png")
+
