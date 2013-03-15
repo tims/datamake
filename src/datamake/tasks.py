@@ -138,8 +138,6 @@ class Task:
         command = "{0} && {1}".format(self.pre_command, command)
       if self.post_command:
         command = "{0} && {1}".format(command, self.post_command)
-
-
       print self.command
       subprocess.check_call(command, shell=True)
     except subprocess.CalledProcessError:
