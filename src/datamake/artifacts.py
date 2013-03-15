@@ -1,3 +1,4 @@
+import os, sys
 import re
 import requests
 import parse_uri
@@ -38,7 +39,6 @@ class FileArtifact(Artifact):
     if not self.path:
       raise Exception("invalid path " + self.path)
     command = '[ -f %s ]' % self.path
-    print "exists command:", command
     if not os.system(command):
       return True
     else:
@@ -115,10 +115,8 @@ class MysqlArtifact(Artifact):
   def exists(self):
     conn = oursql.connect(**self.connection_params)
     curs = conn.cursor()
-    print "Executing query", self.query
     curs.execute(self.query)
     rows = curs.fetchall()
-    print rows
     if len(rows) > 0:
       return True
     else:

@@ -27,24 +27,34 @@ class TaskGraph(object):
   def add_task_dependency(self, upstream_task_id, downstream_task_id):
     self.graph.add_edge(upstream_task_id, downstream_task_id)
 
-  def resolve_subgraph(self, task_id, parameters={}):
-    inherited_parameters = dict(parameters)
+  def resolve_subgraph(self, task_id, _parameters={}):
     reverse_execution_order = [task_id] + list(b for a,b in networkx.bfs_edges(self.graph.reverse(), task_id))
-    for current_task_id in reverse_execution_order:
-      task_template = self.task_templates[current_task_id]
-      for task in task_template.tasks(inherited_parameters):
-        self.add_task(task)
-      inherited_parameters.update(task_template.parameters)
+    subgraph = self.graph.subgraph(reverse_execution_order)
+    root_inherited_parameters = dict(_parameters)
+    for task_id in reverse_execution_order:
+      task_template = self.task_templates[task_id]
+
+      parameters = subgraph.node[task_id].get('parameters', {})
+      parameters.update(task_template.parameters)
+      subgraph.node[task_id]['parameters'] = parameters
+
+      for next_task_id in subgraph.reverse()[task_id]:
+        next_task_parameters = subgraph.node[next_task_id].get('parameters', {})
+        next_task_parameters.update(parameters)
+        subgraph.node[next_task_id]['parameters'] = next_task_parameters
 
     execution_order = reverse_execution_order
     execution_order.reverse()
-    tasks = itertools.chain(*(sorted(self.tasks[task_id]) for task_id in execution_order))
-    return tasks
+    for task_id in execution_order:
+      parameters = subgraph.node[task_id].get('parameters',{})
+      for task in self.task_templates[task_id].tasks(parameters):
+        self.add_task(task)
+    resolved_tasks = itertools.chain(*(sorted(self.tasks[task_id]) for task_id in execution_order))
+    return resolved_tasks
 
-  def draw_graph(self, filename):
-    import matplotlib.pyplot
-    networkx.draw(self.graph)
-    matplotlib.pyplot.savefig(filename)
+  def dot(self, task_ids):
+    g = self.graph.subgraph(task_ids)
+    networkx.write_dot(g, filename)
 
 class TaskTemplate:
   def __init__(self, **kvargs):
@@ -52,13 +62,17 @@ class TaskTemplate:
     self.command = kvargs['command']
     self.artifact = kvargs['artifact']
     self.cleanup = kvargs.get('cleanup', False)
+    self.max_attempts = kvargs.get('max_attempts', 1)
     self.parameters = kvargs.get('parameters', {})
 
   def _template(self, template_string, parameters):
-    if template_string and parameters:
-      return Template(template_string).substitute(parameters)
-    else:
-      return template_string
+    try:
+      if template_string and parameters:
+        return Template(template_string).substitute(parameters)
+      else:
+        return template_string
+    except KeyError, e:
+      raise TemplateKeyError(self.id, template_string, e.message)
 
   def tasks(self, inherited_parameters={}):
     params = dict(inherited_parameters)
@@ -66,11 +80,7 @@ class TaskTemplate:
     templated_params = {}
     for key, value in params.items()  :
       if isinstance(value, basestring):
-        try:
-          value = self._template(value, inherited_parameters)
-        except KeyError, e:
-          print >>sys.stderr, "Could not resolve template parameter", key, value
-          raise
+        value = self._template(value, inherited_parameters)
         if not value.startswith("="):
           templated_params[key] = templated_params.get(key, []) + [value]
         else:
@@ -92,7 +102,16 @@ class TaskTemplate:
 
       artifact = artifacts.resolve_artifact(self._template(self.artifact, params)) if self.artifact else None
       command = self._template(self.command, params)
-      yield Task(id=self.id, command=command, artifact=artifact, cleanup=self.cleanup)
+      yield Task(id=self.id, command=command, artifact=artifact, cleanup=self.cleanup, max_attempts=self.max_attempts)
+
+class TemplateKeyError(Exception):
+  def __init__(self, task_id, template_string, key):
+    self.task_id = task_id
+    self.template_string = template_string
+    self.key = key
+
+  def __str__(self):
+    return repr(self.__dict__)
 
 class TaskExecutionError(Exception):
   def __init__(self, task):
@@ -105,23 +124,52 @@ class TaskExecutionError(Exception):
 class Task:
   def __init__(self, **kvargs):
     self.id = kvargs['id']
+    self.pre_command = None
+    self.post_command = None
     self.command = kvargs.get('command', None)
     self.artifact = kvargs.get('artifact', None)
     self.cleanup = kvargs.get('cleanup', False)
+    self.max_attempts = kvargs.get('max_attempts', 1)
 
-  def execute(self):
+  def _run_command(self):
     try:
-      if self.command:
-        subprocess.check_call(self.command, shell=True)
+      command = self.command
+      if self.pre_command:
+        command = "{0} && {1}".format(self.pre_command, command)
+      if self.post_command:
+        command = "{0} && {1}".format(command, self.post_command)
+
+
+      print self.command
+      subprocess.check_call(command, shell=True)
     except subprocess.CalledProcessError:
-      sys.stdout.flush()
-      sys.stderr.flush()
       raise TaskExecutionError(self)
     finally:
       sys.stdout.flush()
       sys.stderr.flush()
 
-  def tuple(self): return (self.id, self.command, self.artifact.uri() if self.artifact else None, self.cleanup)
+  def execute(self):
+    attempts = 0
+    while True:
+      try:
+        if self.command:
+          attempts += 1
+          self._run_command()
+          return
+      except TaskExecutionError:
+        print >>sys.stderr, "attempt {0} failed".format(attempts)
+        if attempts >= self.max_attempts:
+          print >>sys.stderr, "max attempts reached"
+          raise
+
+  def clean(self):
+    if self.artifact:
+      if self.cleanup:
+        if self.artifact.exists():
+          print "cleaning up artifact", task.artifact.uri()
+          self.artifact.delete()
+
+  def tuple(self): return (self.id, self.command, self.artifact.uri() if self.artifact else None, self.cleanup, self.max_attempts)
   def __eq__(self, other): return self.tuple() == other.tuple()
   def __ne__(self, other): return self.tuple() != other.tuple()
   def __lt__(self, other): return self.tuple() < other.tuple()

@@ -1,6 +1,6 @@
 import sys, json
 import artifacts
-from task import TaskGraph, TaskTemplate
+from tasks import TaskGraph, TaskTemplate
 
 class DatamakeConfig(object):
   def __init__(self):
@@ -21,12 +21,13 @@ class DatamakeConfig(object):
       command = task_info.get('command', None)
       artifact = task_info.get('artifact', None)
       cleanup = task_info.get('cleanup', False)
+      max_attempts = task_info.get('max_attempts', 1)
       parameters = task_info.get('parameters', {})
       dependencies = task_info.get('dependencies', [])
 
       parameters.update(self.override_parameters)
       
-      task_template = TaskTemplate(id=id, command=command, artifact=artifact, cleanup=cleanup, parameters=parameters)
+      task_template = TaskTemplate(id=id, command=command, artifact=artifact, cleanup=cleanup, parameters=parameters, max_attempts=max_attempts)
       task_graph.add_task_template(task_template)
       for upstream_task_id in dependencies:
         task_graph.add_task_dependency(upstream_task_id, task_template.id)

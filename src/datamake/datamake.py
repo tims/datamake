@@ -1,11 +1,12 @@
 import sys, json
 import artifacts
-from task import TaskGraph, TaskTemplate
+from tasks import TaskGraph, TaskTemplate, TaskExecutionError
 from config import DatamakeConfig
+import networkx
 
 if __name__ == '__main__':
   config_filename = sys.argv[1]
-  task_id = sys.argv[2]
+  task_id = unicode(sys.argv[2])
   params = dict(param.split('=') for param in sys.argv[3:])
 
   dmconf = DatamakeConfig()
@@ -14,10 +15,21 @@ if __name__ == '__main__':
   task_graph = dmconf.task_graph()
   tasks = task_graph.resolve_subgraph(task_id, params)
 
-  for task in tasks:
-    print json.dumps(task.__dict__, indent=True, default=lambda x: x.uri() if isinstance(x, artifacts.Artifact) else x.__dict__)
-    print "Executing task", task.id
-    task.execute()
-
-  
+  try:
+    for task in tasks:
+      if task.artifact:
+        if task.artifact.exists():
+          print task.artifact.uri(), "exists"
+        else:
+          print task.artifact.uri(), "does not exist"
+          if task.command:
+            print task.command
+            sys.stdout.flush()
+            task.execute()
+  except TaskExecutionError, e:
+    print >>sys.stderr, "Stopping at task:", task.id
+    sys.exit(1)
+  finally:
+    for task in tasks:
+      task.clean()
 
