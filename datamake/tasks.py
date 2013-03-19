@@ -27,13 +27,12 @@ class TaskGraph(object):
   def add_task_dependency(self, upstream_task_id, downstream_task_id):
     self.graph.add_edge(upstream_task_id, downstream_task_id)
 
-  def resolve_subgraph(self, task_id, _parameters={}):
+  def resolve_execution_tasks(self, task_id):
     if not task_id in self.task_templates:
       raise TaskNotFoundError(task_id)
 
     reverse_execution_order = [task_id] + list(b for a,b in networkx.bfs_edges(self.graph.reverse(), task_id))
     subgraph = self.graph.subgraph(reverse_execution_order)
-    root_inherited_parameters = dict(_parameters)
     for task_id in reverse_execution_order:
       task_template = self.task_templates[task_id]
 
@@ -41,6 +40,7 @@ class TaskGraph(object):
       parameters.update(task_template.parameters)
       subgraph.node[task_id]['parameters'] = parameters
 
+      # get predecessors
       for next_task_id in subgraph.reverse()[task_id]:
         next_task_parameters = subgraph.node[next_task_id].get('parameters', {})
         next_task_parameters.update(parameters)
@@ -52,8 +52,8 @@ class TaskGraph(object):
       parameters = subgraph.node[task_id].get('parameters',{})
       for task in self.task_templates[task_id].tasks(parameters):
         self.add_task(task)
-    resolved_tasks = itertools.chain(*(sorted(self.tasks[task_id]) for task_id in execution_order))
-    return resolved_tasks
+    execution_tasks = itertools.chain(*(sorted(self.tasks[task_id]) for task_id in execution_order))
+    return execution_tasks
 
   def dot(self, task_ids):
     g = self.graph.subgraph(task_ids)
@@ -81,6 +81,8 @@ class TaskTemplate:
     params = dict(inherited_parameters)
     params.update(self.parameters)
     templated_params = {}
+
+    # eval expression parameters
     for key, value in params.items()  :
       if isinstance(value, basestring):
         value = self._template(value, inherited_parameters)
@@ -98,11 +100,13 @@ class TaskTemplate:
       else:
         templated_params[key] = templated_params.get(key, []) + [value]
 
+    # expand multivalued params into multiple tasks
     for point in itertools.product(*templated_params.values()):
       params = dict(zip(templated_params.iterkeys(), point))
       for k,v in inherited_parameters.iteritems():
         if k not in params: params[k] = v
 
+      # actually resolve the artifact, command etc
       artifact = artifacts.resolve_artifact(self._template(self.artifact, params)) if self.artifact else None
       command = self._template(self.command, params)
       yield Task(id=self.id, command=command, artifact=artifact, cleanup=self.cleanup, max_attempts=self.max_attempts)

@@ -12,7 +12,7 @@ def main(args):
   dmconf.load_from_file(config_filename)
   dmconf.override_parameters = params
   task_graph = dmconf.task_graph()
-  tasks = task_graph.resolve_subgraph(task_id, params)
+  tasks = task_graph.resolve_execution_tasks(task_id)
 
   try:
     for task in tasks:

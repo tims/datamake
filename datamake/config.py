@@ -29,7 +29,7 @@ class DatamakeConfig(object):
 
     try:
       version = self.config['version']
-      if version == '2.0':
+      if version == '1.0':
         for task_info in self.config['tasks']:
           id = task_info['id']
           command = task_info.get('command', None)

@@ -83,7 +83,7 @@ class MysqlArtifact(Artifact):
     if parsed_uri.user:
       params['user'] = parsed_uri.user
     if parsed_uri.password:
-      params['passwd'] = parsed_uri.password
+      params['passwd'] = urllib.unquote(parsed_uri.password)
     if parsed_uri.port:
       params['port'] = parsed_uri.port
     database, query = parsed_uri.path.split('/')[1:]
