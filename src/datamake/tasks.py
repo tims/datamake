@@ -28,6 +28,9 @@ class TaskGraph(object):
     self.graph.add_edge(upstream_task_id, downstream_task_id)
 
   def resolve_subgraph(self, task_id, _parameters={}):
+    if not task_id in self.task_templates:
+      raise TaskNotFoundError(task_id)
+
     reverse_execution_order = [task_id] + list(b for a,b in networkx.bfs_edges(self.graph.reverse(), task_id))
     subgraph = self.graph.subgraph(reverse_execution_order)
     root_inherited_parameters = dict(_parameters)
@@ -104,6 +107,13 @@ class TaskTemplate:
       command = self._template(self.command, params)
       yield Task(id=self.id, command=command, artifact=artifact, cleanup=self.cleanup, max_attempts=self.max_attempts)
 
+class TaskNotFoundError(Exception):
+  def __init__(self, id):
+    self.id = id
+
+  def __str__(self):
+    return repr(id)
+
 class TemplateKeyError(Exception):
   def __init__(self, task_id, template_string, key):
     self.task_id = task_id
@@ -118,7 +128,7 @@ class TaskExecutionError(Exception):
     self.task = task
 
   def __str__(self):
-    return repr(self.value)
+    return repr(self.task.__dict__)
 
 
 class Task:

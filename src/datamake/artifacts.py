@@ -1,8 +1,10 @@
 import os, sys
 import re
 import requests
+import urlparse
 import parse_uri
 import oursql
+import urllib
 from boto.s3.connection import S3Connection
 
 def resolve_artifact(uri):
@@ -92,7 +94,7 @@ class S3Artifact(Artifact):
 
 class MysqlArtifact(Artifact):
   def __init__(self, uri):
-    uri_parser = ParseUri()
+    uri_parser = parse_uri.ParseUri()
     parsed_uri = uri_parser.parse(uri)  
     params = {}
     if parsed_uri.host:
@@ -100,13 +102,13 @@ class MysqlArtifact(Artifact):
     if parsed_uri.user:
       params['user'] = parsed_uri.user
     if parsed_uri.password:
-      params['passwd'] = parsed_uri.password
+      params['passwd'] = urllib.unquote(parsed_uri.password)
     if parsed_uri.port:
-      params['port'] = parsed_uri.port
+      params['port'] = int(parsed_uri.port)
     database, query = parsed_uri.path.split('/')[1:]
     params['db'] = database
     self.connection_params = params
-    self.query = query
+    self.query = urllib.unquote(query)
     self.parsed_uri = parsed_uri
 
   def uri(self):
@@ -131,7 +133,7 @@ class SSHArtifact(Artifact):
     self.path = path
 
   def uri(self):
-    return "ssh://%s/%s" % (self.host, self.path)
+    return urlparse.urlunparse(['ssh',self.host,self.path,None,None,None])
  
   def exists(self):
     # TODO: This should throw exceptions on any errors and only return False when we genuinely know the file is not there

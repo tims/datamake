@@ -1,13 +1,12 @@
-import sys, json
-import artifacts
+import sys
 from tasks import TaskGraph, TaskTemplate, TaskExecutionError
 from config import DatamakeConfig
-import networkx
 
-if __name__ == '__main__':
-  config_filename = sys.argv[1]
-  task_id = unicode(sys.argv[2])
-  params = dict(param.split('=') for param in sys.argv[3:])
+
+def main(args):
+  config_filename = args[1]
+  task_id = unicode(args[2])
+  params = dict(param.split('=') for param in args[3:])
 
   dmconf = DatamakeConfig()
   dmconf.load_from_file(config_filename)
@@ -33,3 +32,5 @@ if __name__ == '__main__':
     for task in tasks:
       task.clean()
 
+if __name__ == '__main__':
+  main(sys.argv)
