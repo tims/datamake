@@ -1,4 +1,4 @@
-from distutils.core import setup
+from setuptools import setup
 setup(name='datamake',
   version='0.1.0',
   author='Tim Sell',
