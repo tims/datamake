@@ -1,3 +1,4 @@
 #!python
-import sys,datamake
-datamake.main(sys.argv)
+import sys
+from datamake import datamake_legacy
+datamake_legacy.main(sys.argv)
