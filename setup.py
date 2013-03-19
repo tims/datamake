@@ -7,5 +7,5 @@ setup(name='datamake',
   packages=['datamake'],
   scripts=['scripts/datamake','scripts/datamakenew'],
   license='LICENSE.txt',
-  install_requires=['urllib3','requests','boto','pyparseuri','oursql','networkx']
+  install_requires=['requests','boto','pyparseuri','oursql','networkx']
 )
