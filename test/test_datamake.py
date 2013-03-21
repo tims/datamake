@@ -306,6 +306,24 @@ class DatamakeConfigTest(unittest.TestCase):
     self.dmconfig.load(StringIO(json.dumps(self.json_data)))
     self.assertRaises(datamake.tasks.TaskNotFoundError, self.dmconfig.task_graph().resolve_execution_tasks, 'task_id')
 
+  def testOnlyRunIfArtifactDoesNotExist(self):
+    self.json_data['tasks'].append({
+        'id': 'task1',
+        'artifact': 'test://true'
+      })
+    self.dmconfig.load(StringIO(json.dumps(self.json_data)))
+    tasks = list(self.dmconfig.task_graph().resolve_execution_tasks('task1'))
+    task1 = list(tasks)[0]
+    print task1.tuple()
+    expected_task = datamake.tasks.Task(id='task1', artifact=datamake.artifacts.TestArtifact(True))
+    print expected_task.tuple()
+
+    
+    self.assertEqual(task1, expected_task)
+
+
+
+
 if __name__ == "__main__":
     unittest.main()
 

@@ -55,6 +55,33 @@ class TaskGraph(object):
     execution_tasks = itertools.chain(*(sorted(self.tasks[task_id]) for task_id in execution_order))
     return execution_tasks
 
+  def resolve_execution_graph(self, task_id):
+    if not task_id in self.task_templates:
+      raise TaskNotFoundError(task_id)
+
+    reverse_execution_order = [task_id] + list(b for a,b in networkx.bfs_edges(self.graph.reverse(), task_id))
+    subgraph = self.graph.subgraph(reverse_execution_order)
+    for task_id in reverse_execution_order:
+      task_template = self.task_templates[task_id]
+
+      parameters = subgraph.node[task_id].get('parameters', {})
+      parameters.update(task_template.parameters)
+      subgraph.node[task_id]['parameters'] = parameters
+
+      # get predecessors
+      for next_task_id in subgraph.reverse()[task_id]:
+        next_task_parameters = subgraph.node[next_task_id].get('parameters', {})
+        next_task_parameters.update(parameters)
+        subgraph.node[next_task_id]['parameters'] = next_task_parameters
+
+    execution_order = reverse_execution_order
+    execution_order.reverse()
+    execution_graph = self.graph.subgraph(execution_order)
+    for task_id in execution_order:
+      parameters = subgraph.node[task_id].get('parameters',{})
+      execution_graph.node[task_id]['tasks'] = list(self.task_templates[task_id].tasks(parameters))
+    return execution_graph
+
   def dot(self, task_ids):
     g = self.graph.subgraph(task_ids)
     networkx.write_dot(g, filename)
@@ -178,7 +205,7 @@ class Task:
     if self.artifact:
       if self.cleanup:
         if self.artifact.exists():
-          print "cleaning up artifact", task.artifact.uri()
+          print "cleaning up artifact", self.artifact.uri()
           self.artifact.delete()
 
   def tuple(self): return (self.id, self.command, self.artifact.uri() if self.artifact else None, self.cleanup, self.max_attempts)

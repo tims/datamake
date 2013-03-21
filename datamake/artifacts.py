@@ -17,6 +17,8 @@ def resolve_artifact(uri):
     return S3Artifact(parsed_uri.host, parsed_uri.path)
   elif parsed_uri.protocol == "mysql":
     return MysqlArtifact(uri)
+  elif parsed_uri.protocol == "test":
+    return TestArtifact(parsed_uri.host)
   else:
     return FileArtifact(uri)
 
@@ -30,6 +32,30 @@ class Artifact:
   def delete(self):
     raise Exception("not implemented")
 
+  def tuple(self): return (self.uri())
+  def __eq__(self, other): return self.tuple() == other.tuple()
+  def __ne__(self, other): return self.tuple() != other.tuple()
+  def __lt__(self, other): return self.tuple() < other.tuple()
+  def __le__(self, other): return self.tuple() <= other.tuple()
+  def __gt__(self, other): return self.tuple() > other.tuple()
+  def __ge__(self, other): return self.tuple() >= other.tuple()
+  def __hash__(self): return hash(self.tuple())
+
+
+
+class TestArtifact(Artifact):
+  def __init__(self, exists_flag):
+    self.exists_flag = exists_flag in ['true','True', True, 1]
+
+  def uri(self):
+    return "test://{0}".format(self.exists_flag)
+
+  def exists(self):
+    return self.exists_flag
+
+  def delete(self):
+    pass
+    
 class FileArtifact(Artifact):
   def __init__(self, path):
     self.path = path
