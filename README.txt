@@ -16,4 +16,3 @@ My current thinking is that the downstream jobs are the ones scheduled by cron /
 
 Currently a job can depend on multiple jobs, but multiple jobs can't depend on the same job. The next step is to separate job flow representation from execution so it can choose the next job to run with complete knowledge of the flow.
 
-Dum de dum.
