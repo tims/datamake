@@ -13,10 +13,8 @@ def main(args):
   dmconf.load_from_file(config_filename)
   dmconf.override_parameters = params
   task_graph = dmconf.task_graph()
-  tasks = task_graph.resolve_execution_tasks(task_id)
-
+  
   execution_graph = task_graph.resolve_execution_graph(task_id)
-
   runner.Runner(task_id, execution_graph).run()
 
 if __name__ == '__main__':

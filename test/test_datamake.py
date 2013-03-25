@@ -42,7 +42,7 @@ class DatamakeConfigTest(unittest.TestCase):
     self.assertEqual(template_task.artifact, '/tmp/foo', 'incorrect artifact')
     self.assertEqual(template_task.parameters, {'x': 1}, 'incorrect parameter')
 
-    tasks = list(task_graph.resolve_execution_tasks('task1'))
+    tasks = list(task_graph.get_tasks('task1'))
     self.assertEqual(len(tasks), 1)
     task = tasks[0]
 
@@ -68,7 +68,7 @@ class DatamakeConfigTest(unittest.TestCase):
     self.assertEqual(template_task.artifact, '/tmp/${filename}', 'incorrect artifact')
     self.assertEqual(template_task.parameters, {'message':'hello world','filename':'foo'}, 'incorrect parameter')
 
-    tasks = list(task_graph.resolve_execution_tasks('task1'))
+    tasks = list(task_graph.get_tasks('task1'))
     self.assertEqual(len(tasks), 1)
     task = tasks[0]
 
@@ -95,7 +95,7 @@ class DatamakeConfigTest(unittest.TestCase):
           })
     self.dmconfig.load(StringIO(json.dumps(self.json_data)))
     task_graph = self.dmconfig.task_graph()
-    task1, task2 = task_graph.resolve_execution_tasks('task2')
+    task1, task2 = task_graph.get_tasks('task2')
     self.assertEqual(task1, datamake.tasks.Task(id='task1', command='echo hello', artifact=datamake.artifacts.FileArtifact('/tmp/foo')))
     self.assertEqual(task2, datamake.tasks.Task(id='task2', command='echo goodbye', artifact=datamake.artifacts.FileArtifact('/tmp/bar')))
 
@@ -123,7 +123,7 @@ class DatamakeConfigTest(unittest.TestCase):
           })
     self.dmconfig.load(StringIO(json.dumps(self.json_data)))
     task_graph = self.dmconfig.task_graph()
-    task1, task2 = task_graph.resolve_execution_tasks('task2')
+    task1, task2 = task_graph.get_tasks('task2')
     self.assertEqual(task1, datamake.tasks.Task(id='task1', command='echo hello', artifact=datamake.artifacts.FileArtifact('/tmp/foo')))
     self.assertEqual(task2, datamake.tasks.Task(id='task2', command='echo goodbye', artifact=datamake.artifacts.FileArtifact('/tmp/bar')))
 
@@ -140,7 +140,7 @@ class DatamakeConfigTest(unittest.TestCase):
     self.dmconfig.load(StringIO(json.dumps(self.json_data)))
 
     task_graph = self.dmconfig.task_graph()
-    task1, = task_graph.resolve_execution_tasks('task1')
+    task1, = task_graph.get_tasks('task1')
     self.assertEqual(task1, datamake.tasks.Task(id='task1', command='echo hello 2', artifact=datamake.artifacts.FileArtifact('/tmp/foo2')))
 
   def testEvalParamsToManyTasks(self):
@@ -155,7 +155,7 @@ class DatamakeConfigTest(unittest.TestCase):
         })
     self.dmconfig.load(StringIO(json.dumps(self.json_data)))
     task_graph = self.dmconfig.task_graph()
-    t1,t2,t3 = task_graph.resolve_execution_tasks('task1')
+    t1,t2,t3 = task_graph.get_tasks('task1')
     self.assertEqual(t1, datamake.tasks.Task(id='task1', command='echo hello 1', artifact=datamake.artifacts.FileArtifact('/tmp/foo1')))
     self.assertEqual(t2, datamake.tasks.Task(id='task1', command='echo hello 2', artifact=datamake.artifacts.FileArtifact('/tmp/foo2')))
     self.assertEqual(t3, datamake.tasks.Task(id='task1', command='echo hello 3', artifact=datamake.artifacts.FileArtifact('/tmp/foo3')))
@@ -179,7 +179,7 @@ class DatamakeConfigTest(unittest.TestCase):
         })
     self.dmconfig.load(StringIO(json.dumps(self.json_data)))
     task_graph = self.dmconfig.task_graph()
-    t11,t12,t13,t2 = task_graph.resolve_execution_tasks('task2')
+    t11,t12,t13,t2 = task_graph.get_tasks('task2')
     self.assertEqual(t11, datamake.tasks.Task(id='task1', command='echo hello 1', artifact=datamake.artifacts.FileArtifact('/tmp/foo1')))
     self.assertEqual(t12, datamake.tasks.Task(id='task1', command='echo hello 2', artifact=datamake.artifacts.FileArtifact('/tmp/foo2')))
     self.assertEqual(t13, datamake.tasks.Task(id='task1', command='echo hello 3', artifact=datamake.artifacts.FileArtifact('/tmp/foo3')))
@@ -203,7 +203,8 @@ class DatamakeConfigTest(unittest.TestCase):
           }
         })
     self.dmconfig.load(StringIO(json.dumps(self.json_data)))
-    t1,t21,t22,t23 = self.dmconfig.task_graph().resolve_execution_tasks('task2')
+    execution_tasks = list(self.dmconfig.task_graph().get_tasks('task2'))
+    t1,t21,t22,t23 = execution_tasks
     self.assertEqual(t1, datamake.tasks.Task(id='task1', command='echo hello', artifact=datamake.artifacts.FileArtifact('/tmp/foo')))
     self.assertEqual(t21, datamake.tasks.Task(id='task2', command='echo goodbye 1', artifact=datamake.artifacts.FileArtifact('/tmp/bar1')))
     self.assertEqual(t22, datamake.tasks.Task(id='task2', command='echo goodbye 2', artifact=datamake.artifacts.FileArtifact('/tmp/bar2')))
@@ -229,7 +230,7 @@ class DatamakeConfigTest(unittest.TestCase):
           }
         })
     self.dmconfig.load(StringIO(json.dumps(self.json_data)))
-    task1, task2 = self.dmconfig.task_graph().resolve_execution_tasks('task2')
+    task1, task2 = self.dmconfig.task_graph().get_tasks('task2')
     self.assertEqual(task1, datamake.tasks.Task(id='task1', command='echo hello', artifact=datamake.artifacts.FileArtifact('/tmp/foo-bar')))
     self.assertEqual(task2, datamake.tasks.Task(id='task2'))
 
@@ -264,7 +265,7 @@ class DatamakeConfigTest(unittest.TestCase):
           }
         })
     self.dmconfig.load(StringIO(json.dumps(self.json_data)))
-    tasks = list(self.dmconfig.task_graph().resolve_execution_tasks('task4'))
+    tasks = list(self.dmconfig.task_graph().get_tasks('task4'))
     task1 = list(tasks)[0]
     self.assertEquals(len(tasks), 4)
     self.assertEqual(task1, datamake.tasks.Task(id='task1', artifact=datamake.artifacts.FileArtifact('/tmp/foo/bar/baz')))
@@ -299,28 +300,12 @@ class DatamakeConfigTest(unittest.TestCase):
           }
         })
     self.dmconfig.load(StringIO(json.dumps(self.json_data)))
-    self.assertRaises(datamake.tasks.TemplateKeyError, self.dmconfig.task_graph().resolve_execution_tasks, 'task4')
+    self.assertRaises(datamake.tasks.TemplateKeyError, self.dmconfig.task_graph().get_tasks, 'task4')
 
 
   def testDoubleTaskParameterMissingParam(self):
     self.dmconfig.load(StringIO(json.dumps(self.json_data)))
-    self.assertRaises(datamake.tasks.TaskNotFoundError, self.dmconfig.task_graph().resolve_execution_tasks, 'task_id')
-
-  def testOnlyRunIfArtifactDoesNotExist(self):
-    self.json_data['tasks'].append({
-        'id': 'task1',
-        'artifact': 'test://true'
-      })
-    self.dmconfig.load(StringIO(json.dumps(self.json_data)))
-    tasks = list(self.dmconfig.task_graph().resolve_execution_tasks('task1'))
-    task1 = list(tasks)[0]
-    print task1.tuple()
-    expected_task = datamake.tasks.Task(id='task1', artifact=datamake.artifacts.TestArtifact(True))
-    print expected_task.tuple()
-
-    
-    self.assertEqual(task1, expected_task)
-
+    self.assertRaises(datamake.tasks.TaskNotFoundError, self.dmconfig.task_graph().get_tasks, 'task_id')
 
 
 

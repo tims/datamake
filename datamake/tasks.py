@@ -27,6 +27,14 @@ class TaskGraph(object):
   def add_task_dependency(self, upstream_task_id, downstream_task_id):
     self.graph.add_edge(upstream_task_id, downstream_task_id)
 
+  def get_tasks(self, task_id):
+    ex_graph = self.resolve_execution_graph(task_id)
+    execution_order = [task_id] + list([b for a,b in networkx.bfs_edges(self.graph.reverse(), task_id)])
+    execution_order.reverse()
+
+    execution_tasks = itertools.chain(*(sorted(ex_graph.node[tid]['tasks']) for tid in execution_order))
+    return execution_tasks
+
   def resolve_execution_tasks(self, task_id):
     if not task_id in self.task_templates:
       raise TaskNotFoundError(task_id)
@@ -79,7 +87,7 @@ class TaskGraph(object):
     execution_graph = self.graph.subgraph(execution_order)
     for task_id in execution_order:
       parameters = subgraph.node[task_id].get('parameters',{})
-      execution_graph.node[task_id]['tasks'] = list(self.task_templates[task_id].tasks(parameters))
+      execution_graph.node[task_id]['tasks'] = set(self.task_templates[task_id].tasks(parameters))
     return execution_graph
 
   def dot(self, task_ids):

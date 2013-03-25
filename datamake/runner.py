@@ -8,15 +8,35 @@ class Runner(object):
     self.task_id = task_id
     self.execution_graph = execution_graph
 
+  def get_execution_order(self, graph=None):
+    if graph is None:
+      graph = self.execution_graph
+    if self.task_id in graph.nodes():
+      if len(graph.nodes()) == 1:
+        return [self.task_id]
+      else:
+        bfs_tree = networkx.bfs_tree(graph.reverse(), self.task_id)
+        bfs_tree = bfs_tree.reverse()
+        execution_order = bfs_tree.nodes()
+    else:
+      execution_order = []
+    return execution_order
+
+  def get_pending_graph(self):
+    filter_pending_task_ids = lambda task_id: self.execution_graph.node[task_id]['pending']
+    pending_task_ids = filter(filter_pending_task_ids, self.execution_graph.nodes())
+    pending_graph = self.execution_graph.subgraph(pending_task_ids) # limit graph to all pending nodes
+    pending_execution_order = self.get_execution_order(pending_graph) # get all accessible nodes
+    pending_graph = self.execution_graph.subgraph(pending_execution_order) # limit to accessible nodes 
+    return pending_graph
+
   def check_artifacts(self):
-    bfs_edges = networkx.bfs_edges(self.execution_graph.reverse(), self.task_id)
-    reverse_execution_order = [self.task_id] + list(b for a,b in bfs_edges)
-    for task_id in reverse_execution_order:
+    execution_order = self.get_execution_order()
+    for task_id in reversed(execution_order):
 
       for task in self.execution_graph.node[task_id]['tasks']:
         if task.artifact:
           if task.artifact.exists():
-            print "Artifact exists", task.artifact.uri()
             task.status = "FOUND"
           else:
             task.status = "PENDING"
@@ -29,8 +49,6 @@ class Runner(object):
     self.check_artifacts()
 
     filter_pending_task_ids = lambda task_id: self.execution_graph.node[task_id]['pending']
-    filter_not_pending_task_ids = lambda task_id: not self.execution_graph.node[task_id]['pending']
-    
     pending_task_ids = filter(filter_pending_task_ids, self.execution_graph.nodes())
     pending_graph = self.execution_graph.subgraph(pending_task_ids)
     if self.task_id in pending_graph.nodes():
