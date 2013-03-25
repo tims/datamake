@@ -6,7 +6,7 @@ import datamake.artifacts
 import datamake.runner
 import networkx
 
-class DatamakeConfigTest(unittest.TestCase):
+class DatamakeRunnerTestCase(unittest.TestCase):
   def tmpTask(self, task_id, artifact_exists=False):
     artifact = datamake.artifacts.TestArtifact(artifact_exists)
     return datamake.tasks.Task(id=task_id, artifact=artifact)

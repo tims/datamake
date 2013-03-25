@@ -5,7 +5,7 @@ import datamake.tasks
 import datamake.config
 import datamake.artifacts
 
-class DatamakeConfigTest(unittest.TestCase):
+class ArtifactsTestCase(unittest.TestCase):
   def testResolveFileArtifact(self):
     art = datamake.artifacts.resolve_artifact('/tmp/file')
     self.assertEquals(art.__class__, datamake.artifacts.FileArtifact)

@@ -5,7 +5,7 @@ import datamake.tasks
 import datamake.config
 import datamake.artifacts
 
-class DatamakeConfigTest(unittest.TestCase):
+class DatamakeTestCase(unittest.TestCase):
   def setUp(self):
     self.dmconfig = datamake.config.DatamakeConfig()
     self.json_data = {
