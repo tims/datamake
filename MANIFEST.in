@@ -1,5 +1,5 @@
 include LICENSE.txt
-include README.txt
+include README.md
 recursive-include scripts *
 recursive-include datamake *.py
 recursive-include test *.py
