@@ -303,7 +303,7 @@ class DatamakeConfigTest(unittest.TestCase):
     self.assertRaises(datamake.tasks.TemplateKeyError, self.dmconfig.task_graph().get_tasks, 'task4')
 
 
-  def testDoubleTaskParameterMissingParam(self):
+  def testTaskDoesNotExist(self):
     self.dmconfig.load(StringIO(json.dumps(self.json_data)))
     self.assertRaises(datamake.tasks.TaskNotFoundError, self.dmconfig.task_graph().get_tasks, 'task_id')
 

@@ -1,7 +1,7 @@
 Datamake
 ========
 
-![travis ci status](https://api.travis-ci.org/tims/datamake.png)
+[![Travis CI Status](https://api.travis-ci.org/tims/datamake.png)](https://travis-ci.org/tims/datamake)
 
 This is an experiment, feedback welcome.
 
