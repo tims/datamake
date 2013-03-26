@@ -163,11 +163,12 @@ class TemplateKeyError(Exception):
     return repr(self.__dict__)
 
 class TaskExecutionError(Exception):
-  def __init__(self, task):
+  def __init__(self, task, message=None):
     self.task = task
+    self.message = message
 
   def __str__(self):
-    return repr(self.task.__dict__)
+    return repr((self.task.__dict__, message))
 
 
 class Task:
@@ -204,9 +205,9 @@ class Task:
           self._run_command()
           return
       except TaskExecutionError:
-        print >>sys.stderr, "attempt {0} failed".format(attempts)
+        print "attempt {0} failed".format(attempts)
         if attempts >= self.max_attempts:
-          print >>sys.stderr, "max attempts reached"
+          print "max attempts reached"
           raise
 
   def clean(self):

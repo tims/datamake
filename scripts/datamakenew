@@ -1,4 +1,4 @@
 #!python
 import sys
 from datamake import datamake
-datamake.main(sys.argv)
+datamake.main()

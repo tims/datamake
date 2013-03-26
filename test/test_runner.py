@@ -50,7 +50,12 @@ class DatamakeRunnerTestCase(unittest.TestCase):
     graph.add_edge('task3','task4')
 
     runner = datamake.runner.Runner('task4', graph)
-    self.assertEquals(['task1','task2','task3','task4'], runner.get_execution_order())
+    tasks = ['task1','task2','task3','task4']
+    execution_order = runner.get_execution_order()
+    self.assertGreater(tasks.index('task2'),execution_order.index('task1'))
+    self.assertLess(tasks.index('task2'),execution_order.index('task4'))
+    self.assertGreater(tasks.index('task3'),execution_order.index('task1'))
+    self.assertLess(tasks.index('task3'),execution_order.index('task4'))
 
     runner.check_artifacts()
     pending_graph = runner.get_pending_graph()
