@@ -4,10 +4,18 @@ from templates import TaskTemplateResolver, TemplateKeyError
 from config import DatamakeConfig
 import runner
 import json
-import argparse
 import utils
 
 def parse_args(args):
+  try:
+    import argparse
+    return parse_args_with_argparse(args)
+  except ImportError:
+    import optparse
+    return parse_args_with_optparse(args)
+
+def parse_args_with_argparse(args):
+  import argparse
   parser = argparse.ArgumentParser(description='Run datamake task flow.')
   parser.add_argument('task_id', metavar='task_id', type=str, help='target task to be run')
   parser.add_argument('config_files', metavar='config_file', type=str, nargs='+',
@@ -20,8 +28,36 @@ def parse_args(args):
                      help='print all tasks and if they are pending but do not execute them')
   parser.add_argument('--delete-artifacts', dest='delete_artifacts', action='store_true',
                      help='beware! deletes all artifacts in the flow!')
-
   return parser.parse_args(args)
+
+def parse_args_with_optparse(args):
+  import optparse
+  usage = """usage: %prog [-h] [--param PARAMETERS] [--eval-param EVAL_PARAMETERS]
+                   [--dryrun] [--delete-artifacts]
+                   task_id config_file [config_file ...]"""
+  parser = optparse.OptionParser(usage=usage)
+  parser.add_option('--param', dest='parameters', action='append',
+                     help='specify KEY=VALUE parameter that will override parameters on all tasks')
+  parser.add_option('--eval-param', dest='eval_parameters', action='append',
+                     help='specify KEY=VALUE parameter that will override parameters on all tasks. VALUE will be replaced by eval(VALUE) in python. If the eval output is a list, the task flow will be executed per value.')
+  parser.add_option("-f", "--file", dest="filename",
+                    help="write report to FILE", metavar="FILE")
+  parser.add_option("-q", "--quiet",
+                    action="store_false", dest="verbose", default=True,
+                    help="don't print status messages to stdout")
+
+  parser.add_option('--dryrun', dest='dryrun', action='store_true',
+                     help='print all tasks and if they are pending but do not execute them')
+  parser.add_option('--delete-artifacts', dest='delete_artifacts', action='store_true',
+                     help='beware! deletes all artifacts in the flow!')
+
+  (options, remaining) = parser.parse_args()
+  if len(remaining) < 2: 
+    print "Not enough arguments, need: task_id config_files | [config_file]"
+  options.task_id = remaining[0]
+  options.config_files = remaining[1:]
+  return options
+
 
 def run_tasks(task_runner, pending_tasks):
   try:
