@@ -1,4 +1,5 @@
 #!python
 import sys
 from datamake import datamake
-datamake.main()
+exit_status = datamake.main()
+sys.exit(exit_status)

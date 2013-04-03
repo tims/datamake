@@ -8,6 +8,9 @@ import urllib
 from boto.s3.connection import S3Connection
 
 def resolve_artifact(uri):
+  if not uri:
+    return None
+    
   parsed_uri = parse_uri.ParseUri().parse(uri)
   if parsed_uri.protocol == "ssh":
     return SSHArtifact(parsed_uri.host, parsed_uri.path)
@@ -24,13 +27,13 @@ def resolve_artifact(uri):
 
 class Artifact:
   def uri(self):
-    raise Exception("not implemented")
+    raise NotImplementedError()
 
   def exists(self):
-    raise Exception("not implemented")
+    raise NotImplementedError("not implemented")
 
   def delete(self):
-    raise Exception("not implemented")
+    raise NotImplementedError()
 
   def tuple(self): return (self.uri())
   def __eq__(self, other): return self.tuple() == other.tuple()
@@ -40,8 +43,6 @@ class Artifact:
   def __gt__(self, other): return self.tuple() > other.tuple()
   def __ge__(self, other): return self.tuple() >= other.tuple()
   def __hash__(self): return hash(self.tuple())
-
-
 
 class TestArtifact(Artifact):
   def __init__(self, exists_flag):
@@ -114,7 +115,7 @@ class S3Artifact(Artifact):
 
   def delete(self):
     from boto.s3.connection import S3Connection
-    conn = S3Connection(self.access_id, self.private_key)
+    conn = S3Connection()
     b = conn.get_bucket(self.bucket)
     b.delete_key(self.key)
 
@@ -151,7 +152,7 @@ class MysqlArtifact(Artifact):
       return False
 
   def delete(self):
-    raise Exception("not implemented")
+    raise NotImplementedError()
 
 class SSHArtifact(Artifact):
   def __init__(self, host, path):

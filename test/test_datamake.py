@@ -4,20 +4,21 @@ from StringIO import StringIO
 import datamake.tasks
 import datamake.config
 import datamake.artifacts
+import datamake.datamake
 
 class DatamakeTestCase(unittest.TestCase):
-  def setUp(self):
-    self.dmconfig = datamake.config.DatamakeConfig()
+  def get_template_resolver(self, task_infos):
+    config = datamake.config.DatamakeConfig()
     self.json_data = {
       "version": "1.0",
-      "tasks": []
+      "tasks": task_infos
     }
+    config.load(StringIO(json.dumps(self.json_data)))
+    return datamake.datamake.get_template_resolver(config)
 
   def testLoad(self):
-    self.json_data['tasks'].append({"id": "task1"})
-    self.dmconfig.load(StringIO(json.dumps(self.json_data)))
-    task_graph = self.dmconfig.task_graph()
-    template_task = task_graph.task_templates['task1']
+    template_resolver = self.get_template_resolver([{"id": "task1"}])
+    template_task = template_resolver.templates['task1']
     self.assertEqual(template_task.id, 'task1', 'incorrect id')
     self.assertEqual(template_task.command, None, 'incorrect command')
     self.assertEqual(template_task.artifact, None, 'incorrect artifact')
@@ -25,287 +26,211 @@ class DatamakeTestCase(unittest.TestCase):
 
 
   def testSingleTask(self):
-    self.json_data['tasks'].append({
-            "id": "task1",
-            "command": "echo hello world",
-            "artifact": "/tmp/foo",
-            "parameters": {
-              "x": 1
-            }
-          } 
-          )
-    self.dmconfig.load(StringIO(json.dumps(self.json_data)))
-    task_graph = self.dmconfig.task_graph()
-    template_task = task_graph.task_templates[u'task1']
+    template_resolver = self.get_template_resolver([
+      {
+        "id": "task1",
+        "command": "echo hello world",
+        "artifact": "/tmp/foo",
+        "parameters": {
+          "x": 1
+        }
+      } 
+    ])
+    template_task = template_resolver.templates['task1']
     self.assertEqual(template_task.id, 'task1', 'incorrect id')
     self.assertEqual(template_task.command, 'echo hello world', 'incorrect command')
     self.assertEqual(template_task.artifact, '/tmp/foo', 'incorrect artifact')
     self.assertEqual(template_task.parameters, {'x': 1}, 'incorrect parameter')
+    task_graph = template_resolver.resolve_task_graph('task1')
 
-    tasks = list(task_graph.get_tasks('task1'))
-    self.assertEqual(len(tasks), 1)
-    task = tasks[0]
-
+    self.assertEquals(1, len(task_graph.nodes()))
+    task = task_graph.node['task1']['task']
     self.assertEqual(task.id, 'task1', 'incorrect id')
     self.assertEqual(task.command, 'echo hello world', 'incorrect command')
     self.assertEqual(task.artifact.uri(), '/tmp/foo', 'incorrect artifact')
 
   def testSingleParameterizedTask(self):
-    self.json_data['tasks'].append({
-            "id": "task1",
-            "command": "echo ${message}",
-            "artifact": "/tmp/${filename}",
-            "parameters": {
-              "message": "hello world",
-              "filename": "foo"
-            }
-          })
-    self.dmconfig.load(StringIO(json.dumps(self.json_data)))
-    task_graph = self.dmconfig.task_graph()
-    template_task = task_graph.task_templates['task1']
+    template_resolver = self.get_template_resolver([
+      {
+        "id": "task1",
+        "command": "echo ${message}",
+        "artifact": "/tmp/${filename}",
+        "parameters": {
+          "message": "hello world",
+          "filename": "foo"
+        }
+      }
+    ])
+    template_task = template_resolver.templates['task1']
     self.assertEqual(template_task.id, 'task1', 'incorrect id')
     self.assertEqual(template_task.command, 'echo ${message}', 'incorrect command')
     self.assertEqual(template_task.artifact, '/tmp/${filename}', 'incorrect artifact')
     self.assertEqual(template_task.parameters, {'message':'hello world','filename':'foo'}, 'incorrect parameter')
 
-    tasks = list(task_graph.get_tasks('task1'))
-    self.assertEqual(len(tasks), 1)
-    task = tasks[0]
-
+    task_graph = template_resolver.resolve_task_graph('task1')
+    task = task_graph.node['task1']['task']
     self.assertEqual(task.id, 'task1', 'incorrect id')
     self.assertEqual(task.command, 'echo hello world', 'incorrect command')
     self.assertEqual(task.artifact.uri(), '/tmp/foo', 'incorrect artifact')
 
   def testUpstreamTaskInheritsDownstreamParams(self):
-    self.json_data['tasks'].append({
-            "id": "task1",
-            "command": "echo ${message}",
-            "artifact": "/tmp/${filename}"
-          })
-    self.json_data['tasks'].append(
-          {
-            "id": "task2",
-            "command": "echo goodbye",
-            "artifact": "/tmp/bar",
-            "dependencies": ["task1"],
-            "parameters": {
-              "message": "hello",
-              "filename": "foo"
-            }
-          })
-    self.dmconfig.load(StringIO(json.dumps(self.json_data)))
-    task_graph = self.dmconfig.task_graph()
-    task1, task2 = task_graph.get_tasks('task2')
+    template_resolver = self.get_template_resolver([
+      {
+        "id": "task1",
+        "command": "echo ${message}",
+        "artifact": "/tmp/${filename}"
+      },
+      {
+        "id": "task2",
+        "command": "echo goodbye",
+        "artifact": "/tmp/bar",
+        "dependencies": ["task1"],
+        "parameters": {
+          "message": "hello",
+          "filename": "foo"
+        }
+      }
+    ])
+    task_graph = template_resolver.resolve_task_graph('task2')
+    task1, task2 = task_graph.node['task1']['task'], task_graph.node['task2']['task']
     self.assertEqual(task1, datamake.tasks.Task(id='task1', command='echo hello', artifact=datamake.artifacts.FileArtifact('/tmp/foo')))
     self.assertEqual(task2, datamake.tasks.Task(id='task2', command='echo goodbye', artifact=datamake.artifacts.FileArtifact('/tmp/bar')))
 
   def testUpstreamParamsOverrideDownstreamParams(self):
-    self.json_data['tasks'].append(
-          {
-            "id": "task1",
-            "command": "echo ${message}",
-            "artifact": "/tmp/${filename}",
-            "parameters": {
-              "message": "hello",
-              "filename": "foo"
-            }
-          })
-    self.json_data['tasks'].append(
-          {
-            "id": "task2",
-            "command": "echo ${message}",
-            "artifact": "/tmp/${filename}",
-            "dependencies": ["task1"],
-            "parameters": {
-              "message": "goodbye",
-              "filename": "bar"
-            }
-          })
-    self.dmconfig.load(StringIO(json.dumps(self.json_data)))
-    task_graph = self.dmconfig.task_graph()
-    task1, task2 = task_graph.get_tasks('task2')
+    template_resolver = self.get_template_resolver([
+      {
+        "id": "task1",
+        "command": "echo ${message}",
+        "artifact": "/tmp/${filename}",
+        "parameters": {
+          "message": "hello",
+          "filename": "foo"
+        }
+      },
+      {
+        "id": "task2",
+        "command": "echo ${message}",
+        "artifact": "/tmp/${filename}",
+        "dependencies": ["task1"],
+        "parameters": {
+          "message": "goodbye",
+          "filename": "bar"
+        }
+      }
+    ])    
+    task_graph = template_resolver.resolve_task_graph('task2')
+    task1, task2 = task_graph.node['task1']['task'], task_graph.node['task2']['task']
     self.assertEqual(task1, datamake.tasks.Task(id='task1', command='echo hello', artifact=datamake.artifacts.FileArtifact('/tmp/foo')))
     self.assertEqual(task2, datamake.tasks.Task(id='task2', command='echo goodbye', artifact=datamake.artifacts.FileArtifact('/tmp/bar')))
 
-  def testEvalParams(self):
-    self.json_data['tasks'].append(
-        {
-          "id": "task1",
-          "command": "echo hello ${count}",
-          "artifact": "/tmp/foo${count}",
-          "parameters": {
-            "count": "=1 + 1"
-          }
-        })
-    self.dmconfig.load(StringIO(json.dumps(self.json_data)))
-
-    task_graph = self.dmconfig.task_graph()
-    task1, = task_graph.get_tasks('task1')
-    self.assertEqual(task1, datamake.tasks.Task(id='task1', command='echo hello 2', artifact=datamake.artifacts.FileArtifact('/tmp/foo2')))
-
-  def testEvalParamsToManyTasks(self):
-    self.json_data['tasks'].append(
-        {
-          "id": "task1",
-          "command": "echo hello ${count}",
-          "artifact": "/tmp/foo${count}",
-          "parameters": {
-            "count": "=[1,2,3]"
-          }
-        })
-    self.dmconfig.load(StringIO(json.dumps(self.json_data)))
-    task_graph = self.dmconfig.task_graph()
-    t1,t2,t3 = task_graph.get_tasks('task1')
-    self.assertEqual(t1, datamake.tasks.Task(id='task1', command='echo hello 1', artifact=datamake.artifacts.FileArtifact('/tmp/foo1')))
-    self.assertEqual(t2, datamake.tasks.Task(id='task1', command='echo hello 2', artifact=datamake.artifacts.FileArtifact('/tmp/foo2')))
-    self.assertEqual(t3, datamake.tasks.Task(id='task1', command='echo hello 3', artifact=datamake.artifacts.FileArtifact('/tmp/foo3')))
-
-  def testEvalParamsToManyDependentTasks(self):
-    self.json_data['tasks'].append(
-        {
-          "id": "task1",
-          "command": "echo hello ${count}",
-          "artifact": "/tmp/foo${count}"
-        })
-    self.json_data['tasks'].append(
-        {
-          "id": "task2",
-          "command": "echo goodbye",
-          "artifact": "/tmp/bar",
-          "dependencies": ["task1"],
-          "parameters": {
-            "count": "=[1,2,3]"
-          }
-        })
-    self.dmconfig.load(StringIO(json.dumps(self.json_data)))
-    task_graph = self.dmconfig.task_graph()
-    t11,t12,t13,t2 = task_graph.get_tasks('task2')
-    self.assertEqual(t11, datamake.tasks.Task(id='task1', command='echo hello 1', artifact=datamake.artifacts.FileArtifact('/tmp/foo1')))
-    self.assertEqual(t12, datamake.tasks.Task(id='task1', command='echo hello 2', artifact=datamake.artifacts.FileArtifact('/tmp/foo2')))
-    self.assertEqual(t13, datamake.tasks.Task(id='task1', command='echo hello 3', artifact=datamake.artifacts.FileArtifact('/tmp/foo3')))
-    self.assertEqual(t2, datamake.tasks.Task(id='task2', command='echo goodbye', artifact=datamake.artifacts.FileArtifact('/tmp/bar')))
-
-  def testEvalParamsToManyTasksWithSingleDependentTask(self):
-    self.json_data['tasks'].append(
-        {
-          "id": "task1",
-          "command": "echo hello",
-          "artifact": "/tmp/foo"
-        })
-    self.json_data['tasks'].append(
-        {
-          "id": "task2",
-          "command": "echo goodbye ${count}",
-          "artifact": "/tmp/bar${count}",
-          "dependencies": ["task1"],
-          "parameters": {
-            "count": "=[1,2,3]"
-          }
-        })
-    self.dmconfig.load(StringIO(json.dumps(self.json_data)))
-    execution_tasks = list(self.dmconfig.task_graph().get_tasks('task2'))
-    t1,t21,t22,t23 = execution_tasks
-    self.assertEqual(t1, datamake.tasks.Task(id='task1', command='echo hello', artifact=datamake.artifacts.FileArtifact('/tmp/foo')))
-    self.assertEqual(t21, datamake.tasks.Task(id='task2', command='echo goodbye 1', artifact=datamake.artifacts.FileArtifact('/tmp/bar1')))
-    self.assertEqual(t22, datamake.tasks.Task(id='task2', command='echo goodbye 2', artifact=datamake.artifacts.FileArtifact('/tmp/bar2')))
-    self.assertEqual(t23, datamake.tasks.Task(id='task2', command='echo goodbye 3', artifact=datamake.artifacts.FileArtifact('/tmp/bar3')))
-
   def testParameterizedParameters(self):
-    self.json_data['tasks'].append(
-        {
-          "id": "task1",
-          "command": "echo hello",
-          "artifact": "/tmp/${filename}",
-          "dependencies": ["task1"],
-          "parameters": {
-            "filename": "${category}-bar"
-          }
-        })
-    self.json_data['tasks'].append(
-        {
-          "id": "task2",
-          "dependencies": ["task1"],
-          "parameters": {
-            "category": "foo"
-          }
-        })
-    self.dmconfig.load(StringIO(json.dumps(self.json_data)))
-    task1, task2 = self.dmconfig.task_graph().get_tasks('task2')
+    template_resolver = self.get_template_resolver([
+      {
+        "id": "task1",
+        "command": "echo hello",
+        "artifact": "/tmp/${filename}",
+        "dependencies": ["task1"],
+        "parameters": {
+          "filename": "${category}-bar"
+        }
+      },
+      {
+        "id": "task2",
+        "dependencies": ["task1"],
+        "parameters": {
+          "category": "foo"
+        }
+      }
+    ])
+    task_graph = template_resolver.resolve_task_graph('task2')
+    task1, task2 = task_graph.node['task1']['task'], task_graph.node['task2']['task']
     self.assertEqual(task1, datamake.tasks.Task(id='task1', command='echo hello', artifact=datamake.artifacts.FileArtifact('/tmp/foo-bar')))
     self.assertEqual(task2, datamake.tasks.Task(id='task2'))
 
-  def testDoubleTaskParameterInheritence(self):
-    self.json_data['tasks'].append(
-        {
-          "id": "task1",
-          "artifact": "/tmp/${category}/${action}/${label}"
-        })
-    self.json_data['tasks'].append(
-        {
-          "id": "task2",
-          "dependencies": ["task1"],
-          "parameters": {
-            "category": "foo"
-          }
-        })
-    self.json_data['tasks'].append(
-        {
-          "id": "task3",
-          "dependencies": ["task1"],
-          "parameters": {
-            "action": "bar"
-          }
-        })
-    self.json_data['tasks'].append(
-        {
-          "id": "task4",
-          "dependencies": ["task2", "task3"],
-          "parameters": {
-            "label": "baz"
-          }
-        })
-    self.dmconfig.load(StringIO(json.dumps(self.json_data)))
-    tasks = list(self.dmconfig.task_graph().get_tasks('task4'))
-    task1 = list(tasks)[0]
-    self.assertEquals(len(tasks), 4)
-    self.assertEqual(task1, datamake.tasks.Task(id='task1', artifact=datamake.artifacts.FileArtifact('/tmp/foo/bar/baz')))
+  def testDiamondShapedParameterInheritence(self):
+    template_resolver = self.get_template_resolver([
+      {
+        "id": "task1",
+        "artifact": "/${A}/${B}/${C}/${D}",
+        "parameters": {
+          "A": "foe"
+        }
+      },
+      {
+        "id": "task2",
+        "artifact": "/${B}/${D}",
+        "dependencies": ["task1"],
+        "parameters": {
+          "B": "foo"
+        }
+      },
+      {
+        "id": "task3",
+        "artifact": "/${C}/${D}",
+        "dependencies": ["task1"],
+        "parameters": {
+          "C": "bar"
+        }
+      },
+      {
+        "id": "task4",
+        "artifact": "/${D}",
+        "dependencies": ["task2", "task3"],
+        "parameters": {
+          "D": "baz"
+        }
+      }
+    ])
+    task_graph = template_resolver.resolve_task_graph('task4')
+    
+    task1 = task_graph.node['task1']['task']
+    task2 = task_graph.node['task2']['task']
+    task3 = task_graph.node['task3']['task']
+    task4 = task_graph.node['task4']['task']
+
+    self.assertEqual(task1, datamake.tasks.Task(id='task1', artifact=datamake.artifacts.FileArtifact('/foe/foo/bar/baz')))
+    self.assertEqual(task2, datamake.tasks.Task(id='task2', artifact=datamake.artifacts.FileArtifact('/foo/baz')))
+    self.assertEqual(task3, datamake.tasks.Task(id='task3', artifact=datamake.artifacts.FileArtifact('/bar/baz')))
+    self.assertEqual(task4, datamake.tasks.Task(id='task4', artifact=datamake.artifacts.FileArtifact('/baz')))
 
   def testDoubleTaskParameterMissingParam(self):
-    self.json_data['tasks'].append(
-        {
-          "id": "task1",
-          "artifact": "/tmp/${category}/${action}/${label}"
-        })
-    self.json_data['tasks'].append(
-        {
-          "id": "task2",
-          "dependencies": ["task1"],
-          "parameters": {
-            "category": "foo"
-          }
-        })
-    self.json_data['tasks'].append(
-        {
-          "id": "task3",
-          "parameters": {
-            "action": "bar"
-          }
-        })
-    self.json_data['tasks'].append(
-        {
-          "id": "task4",
-          "dependencies": ["task2", "task3"],
-          "parameters": {
-            "label": "baz"
-          }
-        })
-    self.dmconfig.load(StringIO(json.dumps(self.json_data)))
-    self.assertRaises(datamake.tasks.TemplateKeyError, self.dmconfig.task_graph().get_tasks, 'task4')
-
+    template_resolver = self.get_template_resolver([
+      {
+        "id": "task1",
+        "artifact": "/${A}/${B}/${C}/${D}",
+        "parameters": {
+          "A": "foe"
+        }
+      },
+      {
+        "id": "task2",
+        "artifact": "/${B}/${D}",
+        "dependencies": ["task1"],
+        "parameters": {
+          "B": "foo"
+        }
+      },
+      {
+        "id": "task3",
+        "artifact": "/${C}/${D}",
+        "parameters": {
+          "C": "bar"
+        }
+      },
+      {
+        "id": "task4",
+        "artifact": "/${D}",
+        "dependencies": ["task2", "task3"],
+        "parameters": {
+          "D": "baz"
+        }
+      }
+    ])
+    self.assertRaises(datamake.templates.TemplateKeyError, template_resolver.resolve_task_graph, 'task4')
 
   def testTaskDoesNotExist(self):
-    self.dmconfig.load(StringIO(json.dumps(self.json_data)))
-    self.assertRaises(datamake.tasks.TaskNotFoundError, self.dmconfig.task_graph().get_tasks, 'task_id')
+    template_resolver = self.get_template_resolver([])
+    self.assertRaises(KeyError, template_resolver.resolve_task_graph, 'task1')
 
 
 
