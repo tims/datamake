@@ -52,11 +52,6 @@ class DatamakeRunnerTestCase(unittest.TestCase):
     runner = datamake.runner.Runner('task4', graph)
     tasks = ['task1','task2','task3','task4']
     execution_order = runner.get_execution_order('task4', graph)
-    self.assertGreater(tasks.index('task2'),execution_order.index('task1'))
-    self.assertLess(tasks.index('task2'),execution_order.index('task4'))
-    self.assertGreater(tasks.index('task3'),execution_order.index('task1'))
-    self.assertLess(tasks.index('task3'),execution_order.index('task4'))
-
     runner.check_artifacts()
     pending_graph = runner.get_pending_graph()
     self.assertEquals(['task1','task2','task4'], runner.get_execution_order('task4',pending_graph))
