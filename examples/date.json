@@ -1,0 +1,12 @@
+{
+  "version": "1.0",
+  "description": "This is a contrived example showing helpful date util function.",
+  "tasks":
+  [
+    {
+      "id": "main",
+      "command": "curl 'http://search.twitter.com/search.json?q=smile%20since:${date}%20until:${date}' > /tmp/datamake-date-example-${date}.json",
+      "artifact": "/tmp/datamake-date-example-${date}.json"
+    }
+  ]
+}

@@ -25,27 +25,27 @@ So they pull rather than push.
 Flow file format
 ------------------
 
-eg:
+Example 2:
 
     {
       "version": "1.0",
-      "description": "This is a contrived example.",
+      "description": "This is a contrived example showing a diamond of dependencies.",
       "tasks":
       [
         {
           "id": "download",
-          "command": "curl -i https://api.github.com/users/${username} > /tmp/datamake-example-${username}.json",
+          "command": "curl -i https://api.github.com/users/${username} > /tmp/datamake-diamond-example-${username}.json",
           "cleanup": true,
-          "artifact": "/tmp/datamake-example-${username}.json"
+          "artifact": "/tmp/datamake-diamond-example-${username}.json"
         },
         {
           "id": "grep-email",
-          "command": "grep email /tmp/datamake-example-${username}.json",
+          "command": "grep email /tmp/datamake-diamond-example-${username}.json",
           "dependencies": ["download"]
         },
         {
           "id": "grep-name",
-          "command": "grep name /tmp/datamake-example-${username}.json",
+          "command": "grep name /tmp/datamake-diamond-example-${username}.json",
           "dependencies": ["download"]
         },
         {
@@ -55,12 +55,45 @@ eg:
       ]
     }
 
-Run flow
---------
+run with:
 
-  datamake flow.json user-details --param username=tims
+    datamake user-details examples/diamond.json --param username=tims
+
+Example 2:
+
+    {
+      "version": "1.0",
+      "description": "This is a contrived example showing eval params and a helpful date util function.",
+      "tasks":
+      [
+        {
+          "id": "download",
+          "command": "touch /tmp/datamake-date-example-${date}.json",
+        }
+      ]
+    }
+
+run with
+
+    datamake main examples/date.json --eval-param date='days_range(-2,0)'
+
 
 Help
 ----
 
-  datamakenew --help
+    datamake --help
+
+Install
+-------
+
+(Not in pypi)
+
+    pip install git+http://github.com/tims/datamake.git
+
+
+There's some irritating dependencies. Like oursql, which it used for hacky mysql artifacts.
+One day artifact types should be pluggable, because this sucks.
+
+
+
+

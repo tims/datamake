@@ -1,0 +1,27 @@
+{
+  "version": "1.0",
+  "description": "This is a contrived example showing a diamond of dependencies.",
+  "tasks":
+  [
+    {
+      "id": "download",
+      "command": "curl -i https://api.github.com/users/${username} > /tmp/datamake-diamond-example-${username}.json",
+      "cleanup": true,
+      "artifact": "/tmp/datamake-diamond-example-${username}.json"
+    },
+    {
+      "id": "grep-email",
+      "command": "grep email /tmp/datamake-diamond-example-${username}.json",
+      "dependencies": ["download"]
+    },
+    {
+      "id": "grep-name",
+      "command": "grep name /tmp/datamake-diamond-example-${username}.json",
+      "dependencies": ["download"]
+    },
+    {
+      "id": "user-details",
+      "dependencies": ["grep-email", "grep-name"]
+    }
+  ]
+}
