@@ -25,7 +25,7 @@ So they pull rather than push.
 Flow file format
 ------------------
 
-Example 2:
+Example 1:
 
     {
       "version": "1.0",
