@@ -10,7 +10,7 @@ class TemplateKeyError(Exception):
     self.parameters = parameters
 
   def __str__(self):
-    return ("Missing key '{key}' for template string {template_string}\n" +
+    return ("Missing key '{key}' for template string: {template_string}\n" +
       "Parameters: {parameters}").format(**self.__dict__)
 
 class TaskTemplate:
@@ -27,7 +27,7 @@ class TaskTemplate:
 
   def _template(self, template_string, parameters):
     try:
-      if isinstance(template_string, basestring) and template_string and parameters:
+      if isinstance(template_string, basestring) and template_string:
         return string.Template(template_string).substitute(parameters)
       else:
         return template_string

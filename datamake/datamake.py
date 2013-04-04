@@ -40,12 +40,6 @@ def parse_args_with_optparse(args):
                      help='specify KEY=VALUE parameter that will override parameters on all tasks')
   parser.add_option('--eval-param', dest='eval_parameters', action='append',
                      help='specify KEY=VALUE parameter that will override parameters on all tasks. VALUE will be replaced by eval(VALUE) in python. If the eval output is a list, the task flow will be executed per value.')
-  parser.add_option("-f", "--file", dest="filename",
-                    help="write report to FILE", metavar="FILE")
-  parser.add_option("-q", "--quiet",
-                    action="store_false", dest="verbose", default=True,
-                    help="don't print status messages to stdout")
-
   parser.add_option('--dryrun', dest='dryrun', action='store_true',
                      help='print all tasks and if they are pending but do not execute them')
   parser.add_option('--delete-artifacts', dest='delete_artifacts', action='store_true',
