@@ -58,7 +58,7 @@ eg:
 Run flow
 --------
 
-  datamakenew flow.json user-details --param username=tims
+  datamake flow.json user-details --param username=tims
 
 Help
 ----

@@ -1,4 +1,5 @@
 #!python
 import sys
-from datamake import datamake_legacy
-datamake_legacy.main(sys.argv)
+from datamake import datamake
+exit_status = datamake.main()
+sys.exit(exit_status)
