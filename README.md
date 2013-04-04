@@ -27,33 +27,33 @@ Flow file format
 
 eg:
 
-  {
-    "version": "1.0",
-    "description": "This is a contrived example.",
-    "tasks":
-    [
-      {
-        "id": "download",
-        "command": "curl -i https://api.github.com/users/${username} > /tmp/datamake-example-${username}.json",
-        "cleanup": true,
-        "artifact": "/tmp/datamake-example-${username}.json"
-      },
-      {
-        "id": "grep-email",
-        "command": "grep email /tmp/datamake-example-${username}.json",
-        "dependencies": ["download"]
-      },
-      {
-        "id": "grep-name",
-        "command": "grep name /tmp/datamake-example-${username}.json",
-        "dependencies": ["download"]
-      },
-      {
-        "id": "user-details",
-        "dependencies": ["grep-email", "grep-name"]
-      }
-    ]
-  }
+    {
+      "version": "1.0",
+      "description": "This is a contrived example.",
+      "tasks":
+      [
+        {
+          "id": "download",
+          "command": "curl -i https://api.github.com/users/${username} > /tmp/datamake-example-${username}.json",
+          "cleanup": true,
+          "artifact": "/tmp/datamake-example-${username}.json"
+        },
+        {
+          "id": "grep-email",
+          "command": "grep email /tmp/datamake-example-${username}.json",
+          "dependencies": ["download"]
+        },
+        {
+          "id": "grep-name",
+          "command": "grep name /tmp/datamake-example-${username}.json",
+          "dependencies": ["download"]
+        },
+        {
+          "id": "user-details",
+          "dependencies": ["grep-email", "grep-name"]
+        }
+      ]
+    }
 
 Run flow
 --------
