@@ -9,7 +9,10 @@ class Runner(object):
     self.task_graph = task_graph
 
   def get_execution_order(self, task_id, graph):
-    return list(reversed(graph.reverse().bfs_walk_graph(task_id)))
+    if task_id in graph:
+      return list(reversed(graph.reverse().bfs_walk_graph(task_id)))
+    else:
+      return []
 
   def get_task(self, task_id):
     return self.task_graph.node[task_id]['task']

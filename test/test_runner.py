@@ -56,3 +56,14 @@ class DatamakeRunnerTestCase(unittest.TestCase):
     pending_graph = runner.get_pending_graph()
     self.assertEquals(['task1','task2','task4'], runner.get_execution_order('task4',pending_graph))
 
+  def testExecutionOrderWithNothingPending(self):
+    graph = datamake.graph.DirectedGraph()
+    graph.add_node('task1', task=self.tmpTask('task1', True))
+
+    runner = datamake.runner.Runner('task1', graph)
+    execution_order = runner.get_execution_order('task1', graph)
+    self.assertEquals(['task1'], execution_order)
+    runner.check_artifacts()
+    pending_order = runner.get_pending_execution_order()
+    self.assertEquals([], pending_order)
+

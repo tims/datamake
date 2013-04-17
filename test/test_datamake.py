@@ -24,7 +24,6 @@ class DatamakeTestCase(unittest.TestCase):
     self.assertEqual(template_task.artifact, None, 'incorrect artifact')
     self.assertEqual(template_task.parameters, {}, 'incorrect parameter')
 
-
   def testSingleTask(self):
     template_resolver = self.get_template_resolver([
       {
