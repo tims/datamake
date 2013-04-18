@@ -1,6 +1,6 @@
 from setuptools import setup
 setup(name='datamake',
-  version='0.2.2',
+  version='0.2.3',
   author='Tim Sell',
   author_email='trsell@gmail.com',
   url='https://github.com/tims/datamake',

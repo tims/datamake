@@ -7,9 +7,9 @@ def days_range(a, b, fmt="%Y-%m-%d"):
     dt = datetime.datetime.now()
     yield (dt + datetime.timedelta(i)).strftime(fmt)
 
-def date_now():  
+def date_now(fmt="%Y-%m-%d"):  
   dt = datetime.datetime.now()
-  return dt.strftime("%Y-%m-%d")
+  return dt.strftime(fmt)
 
 def date_days_delta(datestring, days_delta):
   dt = datetime.datetime.strptime(datestring, "%Y-%m-%d")
