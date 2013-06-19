@@ -136,9 +136,11 @@ class HDFSArtifact(Artifact):
 
   def exists(self):
     url_path = '/webhdfs/v1' + self.path +'?op=LISTSTATUS&user.name=' + self.username
+    print "Requesting GET %s" % url_path
+    print "HTTP Connecting to %s:%s" % (self.namenode_host, self.namenode_port)
     httpClient = httplib.HTTPConnection(self.namenode_host,
                                         self.namenode_port,
-                                        timeout=600)
+                                        timeout = 600)
     httpClient.request('GET', url_path, headers = {})
     response = httpClient.getresponse()
     data_dict = json.loads(response.read())
