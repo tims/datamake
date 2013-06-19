@@ -123,7 +123,7 @@ class S3Artifact(Artifact):
     b = conn.get_bucket(self.bucket)
     b.delete_key(self.key)
 
-class HdfsArtifact(Artifact):
+class HDFSArtifact(Artifact):
   # Until paul understands Python packaging better, we're going to have
   # to include the specific bit of code we want to use from
   # https://github.com/drelu/webhdfs-py/blob/master/webhdfs/webhdfs.py
