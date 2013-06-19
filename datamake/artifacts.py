@@ -6,6 +6,7 @@ import parse_uri
 import oursql
 import urllib
 from boto.s3.connection import S3Connection
+from hdfs.hfile import Hfile
 
 def resolve_artifact(uri):
   if not uri:
@@ -18,6 +19,8 @@ def resolve_artifact(uri):
     return HTTPArtifact(parsed_uri.source)
   elif parsed_uri.protocol == "s3":
     return S3Artifact(parsed_uri.host, parsed_uri.path)
+  elif parsed_uri.protocol == 'hdfs':
+    return HDFSArtifact(parsed_uri.host, parsed_uri.path)
   elif parsed_uri.protocol == "mysql":
     return MysqlArtifact(uri)
   elif parsed_uri.protocol == "test":
@@ -118,6 +121,16 @@ class S3Artifact(Artifact):
     conn = S3Connection()
     b = conn.get_bucket(self.bucket)
     b.delete_key(self.key)
+
+class HdfsArtifact(Artifact):
+  def __init__(self, url):
+    self.url = url
+
+  def exists(self):
+    raise Exception("TODO(paul): Implement HdfsArtifact::exists")
+
+  def delete(self):
+    raise Exception("TODO(paul): Implement HdfsArtifact::delete")
 
 class MysqlArtifact(Artifact):
   def __init__(self, uri):

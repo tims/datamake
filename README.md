@@ -5,15 +5,16 @@ Datamake
 
 This is an experiment, feedback welcome.
 
-A simple tool for managing parametrized job flows with data dependencies. This is not a scheduler.
+A simple tool for managing parameterized job flows with data dependencies. This is not a scheduler.
 
 Each task specifies an artifact with a URI and a command to be executed on the shell.
 
-Tasks can specify tasks they depend on. A task can be depend on and be depended on by multiple tasks.
+Tasks can specify tasks they depend on. A task can depend on and be depended on by multiple tasks.
 
-Flows are run by specifying the end task that you wish to run, all upstream tasks are run first. Tasks in the flow file, but not upstream of the target task will not be run.
+Flows are run by specifying the end task that you wish to run: all upstream tasks are run first. Tasks in the flow file, but not upstream of the target task will not be run.
 
-When a flow runs, for each task in the flow if it's artifact does not exist it's command is run.
+When a flow runs, for each task in the flow, if its artifact does not exist then its command will be run.
+If its artifact does exist, then its command will not be run - and any upstream tasks solely dependent on this task will also not run.
 
 Downstream jobs pass parameters to upstream jobs.
 
