@@ -6,7 +6,7 @@ import parse_uri
 import oursql
 import urllib
 from boto.s3.connection import S3Connection
-from hdfs.hfile import Hfile
+from webhdfs import WebHDFS
 
 def resolve_artifact(uri):
   if not uri:

@@ -3,4 +3,4 @@ boto
 pyparseuri
 oursql
 networkx
-git+ssh://git@github.com:traviscrawford/python-hdfs.git
+webhdfs-py
