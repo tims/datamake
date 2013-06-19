@@ -5,8 +5,9 @@ import urlparse
 import parse_uri
 import oursql
 import urllib
+import json
+import httplib  # For crappy clone of part of webhdfs-py
 from boto.s3.connection import S3Connection
-from webhdfs import WebHDFS
 
 def resolve_artifact(uri):
   if not uri:
@@ -19,8 +20,8 @@ def resolve_artifact(uri):
     return HTTPArtifact(parsed_uri.source)
   elif parsed_uri.protocol == "s3":
     return S3Artifact(parsed_uri.host, parsed_uri.path)
-  elif parsed_uri.protocol == 'hdfs':
-    return HDFSArtifact(parsed_uri.host, parsed_uri.path)
+  elif parsed_uri.protocol == 'webhdfs':
+    return HDFSArtifact(parsed_uri.host, parsed_uri.port, parsed_uri.user, parsed_uri.path)
   elif parsed_uri.protocol == "mysql":
     return MysqlArtifact(uri)
   elif parsed_uri.protocol == "test":
@@ -123,14 +124,34 @@ class S3Artifact(Artifact):
     b.delete_key(self.key)
 
 class HdfsArtifact(Artifact):
-  def __init__(self, url):
-    self.url = url
+  # Until paul understands Python packaging better, we're going to have
+  # to include the specific bit of code we want to use from
+  # https://github.com/drelu/webhdfs-py/blob/master/webhdfs/webhdfs.py
+  # here, which is the listdir method and its call graph.
+  def __init__(self, namenode_host, namenode_port, hdfs_username, path):
+    self.namenode_host = namenode_host
+    self.namenode_port = namenode_port
+    self.username = hdfs_username
+    self.path = path
 
   def exists(self):
-    raise Exception("TODO(paul): Implement HdfsArtifact::exists")
+    url_path = '/webhdfs/v1' + self.path +'?op=LISTSTATUS&user.name=' + self.username
+    httpClient = httplib.HTTPConnection(self.namenode_host,
+                                        self.namenode_port,
+                                        timeout=600)
+    httpClient.request('GET', url_path, headers = {})
+    response = httpClient.getresponse()
+    data_dict = json.loads(response.read())
+    if 'RemoteException' in data_dict:
+      if 'exception' in data_dict['RemoteException']:
+        if data_dict['RemoteException']['exception'] == 'FileNotFoundException':
+          return False
 
-  def delete(self):
-    raise Exception("TODO(paul): Implement HdfsArtifact::delete")
+    if 'FileStatuses' in data_dict:
+      if 'FileStatus' in data_dict['FileStatuses']:
+        return True
+
+    return False
 
 class MysqlArtifact(Artifact):
   def __init__(self, uri):
