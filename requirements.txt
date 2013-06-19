@@ -3,5 +3,4 @@ boto
 pyparseuri
 oursql
 networkx
-python-hdfs
-
+git+ssh://git@github.com:traviscrawford/python-hdfs.git
