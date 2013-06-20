@@ -134,6 +134,12 @@ class HDFSArtifact(Artifact):
     self.username = hdfs_username
     self.path = path
 
+  def uri(self):
+    if (self.username != None) and len(self.username) > 0:
+      return "webhdfs://%s@%s:%s%s" % (self.username, self.namenode_host, self.namenode_port, self.path)
+    else:
+      return "webhdfs://%s:%s%s" % (self.namenode_host, self.namenode_port, self.path)
+
   def exists(self):
     url_path = '/webhdfs/v1' + self.path +'?op=LISTSTATUS&user.name=' + self.username
     print "Requesting GET %s" % url_path
