@@ -139,7 +139,7 @@ class HDFSArtifact(Artifact):
     print "Requesting GET %s" % url_path
     print "HTTP Connecting to %s:%s" % (self.namenode_host, self.namenode_port)
     httpClient = httplib.HTTPConnection(self.namenode_host,
-                                        self.namenode_port,
+                                        int(self.namenode_port),
                                         timeout = 600)
     httpClient.request('GET', url_path, headers = {})
     response = httpClient.getresponse()
