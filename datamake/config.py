@@ -18,7 +18,11 @@ class DatamakeConfig(object):
     self.config = []
 
   def load(self, input_file):
-    self.default_namespace = path.basename(input_file.name).split('.')[0]
+    if isinstance(input_file, types.FileType):
+      self.default_namespace = path.basename(input_file.name).split('.')[0]
+    else:
+      # Sources other than file, eg. tests use StringIO
+      self.default_namespace = ''
     self.config = json.load(input_file)
 
   def load_from_file(self, input_filename):
@@ -57,4 +61,3 @@ class DatamakeConfig(object):
       raise ConfigError("Key error, could not find {0}".format(str(e)))
 
     return task_templates
-

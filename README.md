@@ -31,6 +31,7 @@ Example 1:
     {
       "version": "1.0",
       "description": "This is a contrived example showing a diamond of dependencies.",
+      "namespace": "examples",
       "tasks":
       [
         {
@@ -58,13 +59,14 @@ Example 1:
 
 run with:
 
-    datamake user-details examples/diamond.json --param username=tims
+    datamake examples.user-details examples/diamond.json --param username=tims
 
 Example 2:
 
     {
       "version": "1.0",
       "description": "This is a contrived example showing eval params and a helpful date util function.",
+      "namespace": "examples",
       "tasks":
       [
         {
@@ -76,7 +78,7 @@ Example 2:
 
 run with
 
-    datamake main examples/date.json --eval-param date='days_range(-2,0)'
+    datamake examples.download examples/date.json --eval-param date='days_range(-2,0)'
 
 
 Help
@@ -94,8 +96,3 @@ Install
 
 There's some irritating dependencies. Like oursql, which it used for hacky mysql artifacts.
 One day artifact types should be pluggable, because this sucks.
-
-
-
-
-

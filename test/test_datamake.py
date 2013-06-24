@@ -11,14 +11,15 @@ class DatamakeTestCase(unittest.TestCase):
     config = datamake.config.DatamakeConfig()
     self.json_data = {
       "version": "1.0",
+      "namespace": "testns",
       "tasks": task_infos
     }
     config.load(StringIO(json.dumps(self.json_data)))
-    return datamake.datamake.get_template_resolver(config)
+    return datamake.datamake.get_template_resolver([config])
 
   def testLoad(self):
     template_resolver = self.get_template_resolver([{"id": "task1"}])
-    template_task = template_resolver.templates['task1']
+    template_task = template_resolver.templates['testns.task1']
     self.assertEqual(template_task.id, 'task1', 'incorrect id')
     self.assertEqual(template_task.command, None, 'incorrect command')
     self.assertEqual(template_task.artifact, None, 'incorrect artifact')
@@ -35,18 +36,44 @@ class DatamakeTestCase(unittest.TestCase):
         }
       } 
     ])
-    template_task = template_resolver.templates['task1']
+    template_task = template_resolver.templates['testns.task1']
     self.assertEqual(template_task.id, 'task1', 'incorrect id')
     self.assertEqual(template_task.command, 'echo hello world', 'incorrect command')
     self.assertEqual(template_task.artifact, '/tmp/foo', 'incorrect artifact')
     self.assertEqual(template_task.parameters, {'x': 1}, 'incorrect parameter')
-    task_graph = template_resolver.resolve_task_graph('task1')
+    task_graph = template_resolver.resolve_task_graph('testns.task1')
 
     self.assertEquals(1, len(task_graph.nodes()))
-    task = task_graph.node['task1']['task']
-    self.assertEqual(task.id, 'task1', 'incorrect id')
+    task = task_graph.node['testns.task1']['task']
+    self.assertEqual(task.id, 'testns.task1', 'incorrect id')
     self.assertEqual(task.command, 'echo hello world', 'incorrect command')
     self.assertEqual(task.artifact.uri(), '/tmp/foo', 'incorrect artifact')
+
+  def testTasksWithoutNamespace(self):
+    template_resolver = self.get_template_resolver([
+      {
+        "id": "task1",
+        "command": "echo hello world",
+        "artifact": "/tmp/foo",
+        "parameters": {
+          "x": 1
+        }
+      } 
+    ])
+    self.assertRaises(KeyError, template_resolver.resolve_task_graph, 'task1')
+
+  def testTasksWithUnknownNamespace(self):
+    template_resolver = self.get_template_resolver([
+      {
+        "id": "task1",
+        "command": "echo hello world",
+        "artifact": "/tmp/foo",
+        "parameters": {
+          "x": 1
+        }
+      } 
+    ])
+    self.assertRaises(KeyError, template_resolver.resolve_task_graph, 'unknown.task1')
 
   def testSingleParameterizedTask(self):
     template_resolver = self.get_template_resolver([
@@ -60,15 +87,15 @@ class DatamakeTestCase(unittest.TestCase):
         }
       }
     ])
-    template_task = template_resolver.templates['task1']
+    template_task = template_resolver.templates['testns.task1']
     self.assertEqual(template_task.id, 'task1', 'incorrect id')
     self.assertEqual(template_task.command, 'echo ${message}', 'incorrect command')
     self.assertEqual(template_task.artifact, '/tmp/${filename}', 'incorrect artifact')
     self.assertEqual(template_task.parameters, {'message':'hello world','filename':'foo'}, 'incorrect parameter')
 
-    task_graph = template_resolver.resolve_task_graph('task1')
-    task = task_graph.node['task1']['task']
-    self.assertEqual(task.id, 'task1', 'incorrect id')
+    task_graph = template_resolver.resolve_task_graph('testns.task1')
+    task = task_graph.node['testns.task1']['task']
+    self.assertEqual(task.id, 'testns.task1', 'incorrect id')
     self.assertEqual(task.command, 'echo hello world', 'incorrect command')
     self.assertEqual(task.artifact.uri(), '/tmp/foo', 'incorrect artifact')
 
@@ -90,10 +117,10 @@ class DatamakeTestCase(unittest.TestCase):
         }
       }
     ])
-    task_graph = template_resolver.resolve_task_graph('task2')
-    task1, task2 = task_graph.node['task1']['task'], task_graph.node['task2']['task']
-    self.assertEqual(task1, datamake.tasks.Task(id='task1', command='echo hello', artifact=datamake.artifacts.FileArtifact('/tmp/foo')))
-    self.assertEqual(task2, datamake.tasks.Task(id='task2', command='echo goodbye', artifact=datamake.artifacts.FileArtifact('/tmp/bar')))
+    task_graph = template_resolver.resolve_task_graph('testns.task2')
+    task1, task2 = task_graph.node['testns.task1']['task'], task_graph.node['testns.task2']['task']
+    self.assertEqual(task1, datamake.tasks.Task(id='testns.task1', command='echo hello', artifact=datamake.artifacts.FileArtifact('/tmp/foo')))
+    self.assertEqual(task2, datamake.tasks.Task(id='testns.task2', command='echo goodbye', artifact=datamake.artifacts.FileArtifact('/tmp/bar')))
 
   def testUpstreamParamsOverrideDownstreamParams(self):
     template_resolver = self.get_template_resolver([
@@ -117,10 +144,10 @@ class DatamakeTestCase(unittest.TestCase):
         }
       }
     ])    
-    task_graph = template_resolver.resolve_task_graph('task2')
-    task1, task2 = task_graph.node['task1']['task'], task_graph.node['task2']['task']
-    self.assertEqual(task1, datamake.tasks.Task(id='task1', command='echo hello', artifact=datamake.artifacts.FileArtifact('/tmp/foo')))
-    self.assertEqual(task2, datamake.tasks.Task(id='task2', command='echo goodbye', artifact=datamake.artifacts.FileArtifact('/tmp/bar')))
+    task_graph = template_resolver.resolve_task_graph('testns.task2')
+    task1, task2 = task_graph.node['testns.task1']['task'], task_graph.node['testns.task2']['task']
+    self.assertEqual(task1, datamake.tasks.Task(id='testns.task1', command='echo hello', artifact=datamake.artifacts.FileArtifact('/tmp/foo')))
+    self.assertEqual(task2, datamake.tasks.Task(id='testns.task2', command='echo goodbye', artifact=datamake.artifacts.FileArtifact('/tmp/bar')))
 
   def testParameterizedParameters(self):
     template_resolver = self.get_template_resolver([
@@ -141,10 +168,10 @@ class DatamakeTestCase(unittest.TestCase):
         }
       }
     ])
-    task_graph = template_resolver.resolve_task_graph('task2')
-    task1, task2 = task_graph.node['task1']['task'], task_graph.node['task2']['task']
-    self.assertEqual(task1, datamake.tasks.Task(id='task1', command='echo hello', artifact=datamake.artifacts.FileArtifact('/tmp/foo-bar')))
-    self.assertEqual(task2, datamake.tasks.Task(id='task2'))
+    task_graph = template_resolver.resolve_task_graph('testns.task2')
+    task1, task2 = task_graph.node['testns.task1']['task'], task_graph.node['testns.task2']['task']
+    self.assertEqual(task1, datamake.tasks.Task(id='testns.task1', command='echo hello', artifact=datamake.artifacts.FileArtifact('/tmp/foo-bar')))
+    self.assertEqual(task2, datamake.tasks.Task(id='testns.task2'))
 
   def testDiamondShapedParameterInheritence(self):
     template_resolver = self.get_template_resolver([
@@ -180,17 +207,17 @@ class DatamakeTestCase(unittest.TestCase):
         }
       }
     ])
-    task_graph = template_resolver.resolve_task_graph('task4')
+    task_graph = template_resolver.resolve_task_graph('testns.task4')
     
-    task1 = task_graph.node['task1']['task']
-    task2 = task_graph.node['task2']['task']
-    task3 = task_graph.node['task3']['task']
-    task4 = task_graph.node['task4']['task']
+    task1 = task_graph.node['testns.task1']['task']
+    task2 = task_graph.node['testns.task2']['task']
+    task3 = task_graph.node['testns.task3']['task']
+    task4 = task_graph.node['testns.task4']['task']
 
-    self.assertEqual(task1, datamake.tasks.Task(id='task1', artifact=datamake.artifacts.FileArtifact('/foe/foo/bar/baz')))
-    self.assertEqual(task2, datamake.tasks.Task(id='task2', artifact=datamake.artifacts.FileArtifact('/foo/baz')))
-    self.assertEqual(task3, datamake.tasks.Task(id='task3', artifact=datamake.artifacts.FileArtifact('/bar/baz')))
-    self.assertEqual(task4, datamake.tasks.Task(id='task4', artifact=datamake.artifacts.FileArtifact('/baz')))
+    self.assertEqual(task1, datamake.tasks.Task(id='testns.task1', artifact=datamake.artifacts.FileArtifact('/foe/foo/bar/baz')))
+    self.assertEqual(task2, datamake.tasks.Task(id='testns.task2', artifact=datamake.artifacts.FileArtifact('/foo/baz')))
+    self.assertEqual(task3, datamake.tasks.Task(id='testns.task3', artifact=datamake.artifacts.FileArtifact('/bar/baz')))
+    self.assertEqual(task4, datamake.tasks.Task(id='testns.task4', artifact=datamake.artifacts.FileArtifact('/baz')))
 
   def testDoubleTaskParameterMissingParam(self):
     template_resolver = self.get_template_resolver([
@@ -225,14 +252,11 @@ class DatamakeTestCase(unittest.TestCase):
         }
       }
     ])
-    self.assertRaises(datamake.templates.TemplateKeyError, template_resolver.resolve_task_graph, 'task4')
+    self.assertRaises(datamake.templates.TemplateKeyError, template_resolver.resolve_task_graph, 'testns.task4')
 
   def testTaskDoesNotExist(self):
     template_resolver = self.get_template_resolver([])
-    self.assertRaises(KeyError, template_resolver.resolve_task_graph, 'task1')
-
-
+    self.assertRaises(KeyError, template_resolver.resolve_task_graph, 'testns.task1')
 
 if __name__ == "__main__":
     unittest.main()
-
