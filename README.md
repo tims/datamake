@@ -20,7 +20,7 @@ Downstream jobs pass parameters to upstream jobs.
 
 Command line parameters can be eval'd to multiple values and will run the whole flow for each value. Eg: an aggregation script can be passed dates for the last 7 days and only the missing days will have anything to do.
 
-The downstream jobs are the ones scheduled by cron / citrine / something else and pull on the tasks upstream and run them as neccessary.
+The downstream jobs are the ones scheduled by cron / citrine / something else and pull on the tasks upstream and run them as necessary.
 So they pull rather than push.
 
 Flow file format
