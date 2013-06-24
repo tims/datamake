@@ -7,7 +7,17 @@ import datamake.artifacts
 import datamake.datamake
 
 class DatamakeTestCase(unittest.TestCase):
-  def get_template_resolver(self, task_infos):
+  def get_legacy_template_resolver(self, task_infos):
+    # Where legacy == no namespace support
+    config = datamake.config.DatamakeConfig()
+    self.json_data = {
+      "version": "1.0",
+      "tasks": task_infos
+    }
+    config.load(StringIO(json.dumps(self.json_data)))
+    return datamake.datamake.get_template_resolver([config])
+
+  def get_ns_template_resolver(self, task_infos):
     config = datamake.config.DatamakeConfig()
     self.json_data = {
       "version": "1.0",
@@ -18,7 +28,7 @@ class DatamakeTestCase(unittest.TestCase):
     return datamake.datamake.get_template_resolver([config])
 
   def testLoad(self):
-    template_resolver = self.get_template_resolver([{"id": "task1"}])
+    template_resolver = self.get_ns_template_resolver([{"id": "task1"}])
     template_task = template_resolver.templates['testns.task1']
     self.assertEqual(template_task.id, 'task1', 'incorrect id')
     self.assertEqual(template_task.command, None, 'incorrect command')
@@ -26,7 +36,7 @@ class DatamakeTestCase(unittest.TestCase):
     self.assertEqual(template_task.parameters, {}, 'incorrect parameter')
 
   def testSingleTask(self):
-    template_resolver = self.get_template_resolver([
+    template_resolver = self.get_ns_template_resolver([
       {
         "id": "task1",
         "command": "echo hello world",
@@ -49,8 +59,22 @@ class DatamakeTestCase(unittest.TestCase):
     self.assertEqual(task.command, 'echo hello world', 'incorrect command')
     self.assertEqual(task.artifact.uri(), '/tmp/foo', 'incorrect artifact')
 
-  def testTasksWithoutNamespace(self):
-    template_resolver = self.get_template_resolver([
+  def testLegacyResolvingTaskWithoutNamespaceIsOK(self):
+    template_resolver = self.get_legacy_template_resolver([
+      {
+        "id": "task1",
+        "command": "echo hello world",
+        "artifact": "/tmp/foo",
+        "parameters": {
+          "x": 1
+        }
+      }
+    ])
+    template_task = template_resolver.templates['task1']
+    self.assertEqual(template_task.id, 'task1', 'incorrect id')
+
+  def testResolvingTaskWithoutNamespaceRaisesError(self):
+    template_resolver = self.get_ns_template_resolver([
       {
         "id": "task1",
         "command": "echo hello world",
@@ -63,7 +87,7 @@ class DatamakeTestCase(unittest.TestCase):
     self.assertRaises(KeyError, template_resolver.resolve_task_graph, 'task1')
 
   def testTasksWithUnknownNamespace(self):
-    template_resolver = self.get_template_resolver([
+    template_resolver = self.get_ns_template_resolver([
       {
         "id": "task1",
         "command": "echo hello world",
@@ -76,7 +100,7 @@ class DatamakeTestCase(unittest.TestCase):
     self.assertRaises(KeyError, template_resolver.resolve_task_graph, 'unknown.task1')
 
   def testSingleParameterizedTask(self):
-    template_resolver = self.get_template_resolver([
+    template_resolver = self.get_ns_template_resolver([
       {
         "id": "task1",
         "command": "echo ${message}",
@@ -100,7 +124,7 @@ class DatamakeTestCase(unittest.TestCase):
     self.assertEqual(task.artifact.uri(), '/tmp/foo', 'incorrect artifact')
 
   def testUpstreamTaskInheritsDownstreamParams(self):
-    template_resolver = self.get_template_resolver([
+    template_resolver = self.get_ns_template_resolver([
       {
         "id": "task1",
         "command": "echo ${message}",
@@ -123,7 +147,7 @@ class DatamakeTestCase(unittest.TestCase):
     self.assertEqual(task2, datamake.tasks.Task(id='testns.task2', command='echo goodbye', artifact=datamake.artifacts.FileArtifact('/tmp/bar')))
 
   def testUpstreamParamsOverrideDownstreamParams(self):
-    template_resolver = self.get_template_resolver([
+    template_resolver = self.get_ns_template_resolver([
       {
         "id": "task1",
         "command": "echo ${message}",
@@ -150,7 +174,7 @@ class DatamakeTestCase(unittest.TestCase):
     self.assertEqual(task2, datamake.tasks.Task(id='testns.task2', command='echo goodbye', artifact=datamake.artifacts.FileArtifact('/tmp/bar')))
 
   def testParameterizedParameters(self):
-    template_resolver = self.get_template_resolver([
+    template_resolver = self.get_ns_template_resolver([
       {
         "id": "task1",
         "command": "echo hello",
@@ -174,7 +198,7 @@ class DatamakeTestCase(unittest.TestCase):
     self.assertEqual(task2, datamake.tasks.Task(id='testns.task2'))
 
   def testDiamondShapedParameterInheritence(self):
-    template_resolver = self.get_template_resolver([
+    template_resolver = self.get_ns_template_resolver([
       {
         "id": "task1",
         "artifact": "/${A}/${B}/${C}/${D}",
@@ -220,7 +244,7 @@ class DatamakeTestCase(unittest.TestCase):
     self.assertEqual(task4, datamake.tasks.Task(id='testns.task4', artifact=datamake.artifacts.FileArtifact('/baz')))
 
   def testDoubleTaskParameterMissingParam(self):
-    template_resolver = self.get_template_resolver([
+    template_resolver = self.get_ns_template_resolver([
       {
         "id": "task1",
         "artifact": "/${A}/${B}/${C}/${D}",
@@ -255,7 +279,7 @@ class DatamakeTestCase(unittest.TestCase):
     self.assertRaises(datamake.templates.TemplateKeyError, template_resolver.resolve_task_graph, 'testns.task4')
 
   def testTaskDoesNotExist(self):
-    template_resolver = self.get_template_resolver([])
+    template_resolver = self.get_ns_template_resolver([])
     self.assertRaises(KeyError, template_resolver.resolve_task_graph, 'testns.task1')
 
 if __name__ == "__main__":

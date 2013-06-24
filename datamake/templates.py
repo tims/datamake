@@ -13,6 +13,13 @@ class TemplateKeyError(Exception):
     return ("Missing key '{key}' for template string: {template_string}\n" +
       "Parameters: {parameters}").format(**self.__dict__)
 
+
+def _ns_template_id(namespace, template_id):
+  if namespace:
+    return ".".join([namespace, template_id])
+  else:
+    return template_id
+
 class TaskTemplate:
   def __init__(self, **kvargs):
     self.namespace = kvargs['namespace']
@@ -43,7 +50,7 @@ class TaskTemplate:
 
     artifact = artifacts.resolve_artifact(self._template(self.artifact, params))
     command = self._template(self.command, params)
-    qualified_task_id = ".".join((self.namespace, self.id))
+    qualified_task_id = _ns_template_id(self.namespace, self.id)
     return Task(id=qualified_task_id, command=command, artifact=artifact, 
       cleanup=self.cleanup, max_attempts=self.max_attempts, template=self)
 
@@ -52,17 +59,22 @@ class TaskTemplateResolver():
     self.template_graph = DirectedGraph()
     self.templates = {}
     self.template_parameters = {}
+    self.namespaces = {}
     for template in task_templates:
       self.add_task_template(template)
 
   def add_task_template(self, template):
-    template_id = ".".join([template.namespace, template.id])
+    template_id = _ns_template_id(template.namespace, template.id)
     self.templates[template_id] = template
     self.template_parameters[template_id] = dict(template.parameters)
     self.template_graph.add_node(template_id)
+    self.namespaces[template.namespace] = True
     for task_id in template.dependencies:
-      qualified_task_id = task_id if '.' in task_id else ".".join([template.namespace, task_id])
-      self.template_graph.add_edge(qualified_task_id, template_id)
+      qualified_task_id = _ns_template_id(template.namespace, task_id)
+      if '.' in task_id:
+        self.template_graph.add_edge(task_id, template_id)
+      else:
+        self.template_graph.add_edge(qualified_task_id, template_id)
 
   def resolve_task_graph(self, template_id):
     if template_id not in self.templates:

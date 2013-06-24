@@ -97,7 +97,6 @@ def main():
   args = parse_args(sys.argv[1:])
   task_id = args.task_id
 
-
   parameters = dict(param.split('=') for param in args.parameters) if args.parameters else {}
   override_parameters_list = []
   if args.eval_parameters:
@@ -108,6 +107,10 @@ def main():
       override_parameters_list.append(override_parameters)
   else:
     override_parameters_list = [parameters]
+
+  if (len(args.config_files) > 1) and not ('.' in task_id):
+    print "task_id must be namespaced (eg. namespace.task) when multiple config files are used.  You provided '%s'" % task_id
+    return 1
 
   configs = [get_config(filename) for filename in args.config_files]
 

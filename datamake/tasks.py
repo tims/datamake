@@ -15,7 +15,6 @@ class TaskExecutionError(Exception):
   def __str__(self):
     return repr((self.task.__dict__, message))
 
-
 class Task:
   def __init__(self, **kvargs):
     self.id = kvargs['id']

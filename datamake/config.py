@@ -35,7 +35,7 @@ class DatamakeConfig(object):
 
     try:
       version = self.config['version']
-      namespace = self.config.get('namespace', self.default_namespace)
+      namespace = self.config.get('namespace', None) #self.default_namespace)
       if version == '1.0':
         for task_info in self.config['tasks']:
           id = task_info['id']
