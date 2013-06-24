@@ -57,13 +57,11 @@ class TaskTemplateResolver():
 
   def add_task_template(self, template):
     template_id = ".".join([template.namespace, template.id])
-    print "Adding template with fq.id: %s" % template_id
     self.templates[template_id] = template
     self.template_parameters[template_id] = dict(template.parameters)
     self.template_graph.add_node(template_id)
     for task_id in template.dependencies:
       qualified_task_id = task_id if '.' in task_id else ".".join([template.namespace, task_id])
-      print "adding edge %s to %s" % (qualified_task_id, template_id)
       self.template_graph.add_edge(qualified_task_id, template_id)
 
   def resolve_task_graph(self, template_id):
@@ -73,10 +71,8 @@ class TaskTemplateResolver():
     reverse_graph = self.template_graph.reverse()
     nodes = reverse_graph.bfs_walk_graph(template_id)
     for node in nodes:
-      print "node: %s" % node
       template = self.templates[node]
       for parent_node in reverse_graph[node]:
-        print "parent_node: %s" % parent_node
         inherited_params = self.template_parameters[parent_node]
         params = self.template_parameters[node]
         inherited_params.update(params)

@@ -12,7 +12,7 @@ class Runner(object):
     for task_id in self.task_graph.nodes():
       task = self.get_task(task_id)
       for dep in task.template.dependencies:
-        print " %s => %s" % (task.template.id, dep)
+        print " %s: %s => %s" % (task.template.namespace, task.template.id, dep)
     return 0
 
   def get_execution_order(self, task_id, graph):

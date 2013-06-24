@@ -26,7 +26,6 @@ class Task:
     self.cleanup = kvargs.get('cleanup', False)
     self.max_attempts = kvargs.get('max_attempts', 1)
     self.template = kvargs.get('template', None)
-    print "Task ctor: id=%s" % self.id
 
   def _run_command(self):
     try:
