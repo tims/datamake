@@ -87,16 +87,16 @@ def get_config(config_filename):
   config.load_from_file(config_filename)
   return config
 
-def get_template_resolver(config, override_parameters={}):
-  task_templates = config.task_templates(override_parameters)
-  template_resolver = TaskTemplateResolver(task_templates)
+def get_template_resolver(configs, override_parameters={}):
+  task_template_sets = [config.task_templates(override_parameters) for config in configs]
+  flattened_task_templates = [item for sublist in task_template_sets for item in sublist]
+  template_resolver = TaskTemplateResolver(flattened_task_templates)
   return template_resolver
 
 def main():
   args = parse_args(sys.argv[1:])
-
-  config_filename = args.config_files[0]
   task_id = args.task_id
+
 
   parameters = dict(param.split('=') for param in args.parameters) if args.parameters else {}
   override_parameters_list = []
@@ -109,11 +109,11 @@ def main():
   else:
     override_parameters_list = [parameters]
 
-  config = get_config(config_filename)
+  configs = [get_config(filename) for filename in args.config_files]
 
   exit_status = 0
   for override_parameters in override_parameters_list:
-    template_resolver = get_template_resolver(config, override_parameters)
+    template_resolver = get_template_resolver(configs, override_parameters)
     try:
       task_graph = template_resolver.resolve_task_graph(task_id)
     except TemplateKeyError, e:

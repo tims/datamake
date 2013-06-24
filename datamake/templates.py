@@ -62,7 +62,7 @@ class TaskTemplateResolver():
     self.template_parameters[template_id] = dict(template.parameters)
     self.template_graph.add_node(template_id)
     for task_id in template.dependencies:
-      qualified_task_id = ".".join([template.namespace, task_id])
+      qualified_task_id = task_id if '.' in task_id else ".".join([template.namespace, task_id])
       print "adding edge %s to %s" % (qualified_task_id, template_id)
       self.template_graph.add_edge(qualified_task_id, template_id)
 
