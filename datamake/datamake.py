@@ -24,6 +24,8 @@ def parse_args_with_argparse(args):
                      help='specify KEY=VALUE parameter that will override parameters on all tasks')
   parser.add_argument('--eval-param', dest='eval_parameters', action='append',
                      help='specify KEY=VALUE parameter that will override parameters on all tasks. VALUE will be replaced by eval(VALUE) in python. If the eval output is a list, the task flow will be executed per value.')
+  parser.add_argument('--showgraph', dest='showgraph', action='store_true',
+                     help='print the task dependency graph but don\'t run tasks.')
   parser.add_argument('--dryrun', dest='dryrun', action='store_true',
                      help='print all tasks and if they are pending but do not execute them')
   parser.add_argument('--delete-artifacts', dest='delete_artifacts', action='store_true',
@@ -33,13 +35,15 @@ def parse_args_with_argparse(args):
 def parse_args_with_optparse(args):
   import optparse
   usage = """usage: %prog [-h] [--param PARAMETERS] [--eval-param EVAL_PARAMETERS]
-                   [--dryrun] [--delete-artifacts]
+                   [--showgraph] [--dryrun] [--delete-artifacts]
                    task_id config_file [config_file ...]"""
   parser = optparse.OptionParser(usage=usage)
   parser.add_option('--param', dest='parameters', action='append',
                      help='specify KEY=VALUE parameter that will override parameters on all tasks')
   parser.add_option('--eval-param', dest='eval_parameters', action='append',
                      help='specify KEY=VALUE parameter that will override parameters on all tasks. VALUE will be replaced by eval(VALUE) in python. If the eval output is a list, the task flow will be executed per value.')
+  parser.add_option('--showgraph', dest='showgraph', action='store_true',
+                     help='print the task dependency graph but don\'t run tasks')
   parser.add_option('--dryrun', dest='dryrun', action='store_true',
                      help='print all tasks and if they are pending but do not execute them')
   parser.add_option('--delete-artifacts', dest='delete_artifacts', action='store_true',
@@ -83,15 +87,14 @@ def get_config(config_filename):
   config.load_from_file(config_filename)
   return config
 
-def get_template_resolver(config, override_parameters={}):
-  task_templates = config.task_templates(override_parameters)
-  template_resolver = TaskTemplateResolver(task_templates)
+def get_template_resolver(configs, override_parameters={}):
+  task_template_sets = [config.task_templates(override_parameters) for config in configs]
+  flattened_task_templates = [item for sublist in task_template_sets for item in sublist]
+  template_resolver = TaskTemplateResolver(flattened_task_templates)
   return template_resolver
 
 def main():
   args = parse_args(sys.argv[1:])
-
-  config_filename = args.config_files[0]
   task_id = args.task_id
 
   parameters = dict(param.split('=') for param in args.parameters) if args.parameters else {}
@@ -105,13 +108,15 @@ def main():
   else:
     override_parameters_list = [parameters]
 
-  config = get_config(config_filename)
+  if (len(args.config_files) > 1) and not ('.' in task_id):
+    print "task_id must be namespaced (eg. namespace.task) when multiple config files are used.  You provided '%s'" % task_id
+    return 1
+
+  configs = [get_config(filename) for filename in args.config_files]
 
   exit_status = 0
   for override_parameters in override_parameters_list:
-    print "Starting Flow"
-    print "Override params: %s" % json.dumps(override_parameters, indent=True)
-    template_resolver = get_template_resolver(config, override_parameters)
+    template_resolver = get_template_resolver(configs, override_parameters)
     try:
       task_graph = template_resolver.resolve_task_graph(task_id)
     except TemplateKeyError, e:
@@ -120,6 +125,13 @@ def main():
       break
 
     task_runner = runner.Runner(task_id, task_graph)
+    if args.showgraph:
+      print "Task graph:"
+      exit_status = task_runner.show_graph()
+      break
+
+    print "Starting Flow"
+    print "Override params: %s" % json.dumps(override_parameters, indent=True)
     pending_tasks = task_runner.get_pending_execution_order()
 
     print "Task status:"

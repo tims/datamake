@@ -8,6 +8,13 @@ class Runner(object):
     self.task_id = task_id
     self.task_graph = task_graph
 
+  def show_graph(self):
+    for task_id in self.task_graph.nodes():
+      task = self.get_task(task_id)
+      for dep in task.template.dependencies:
+        print " %s: %s => %s" % (task.template.namespace, task.template.id, dep)
+    return 0
+
   def get_execution_order(self, task_id, graph):
     if task_id in graph:
       return list(reversed(graph.reverse().bfs_walk_graph(task_id)))

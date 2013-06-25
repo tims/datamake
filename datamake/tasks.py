@@ -15,7 +15,6 @@ class TaskExecutionError(Exception):
   def __str__(self):
     return repr((self.task.__dict__, message))
 
-
 class Task:
   def __init__(self, **kvargs):
     self.id = kvargs['id']
@@ -25,6 +24,7 @@ class Task:
     self.artifact = kvargs.get('artifact', None)
     self.cleanup = kvargs.get('cleanup', False)
     self.max_attempts = kvargs.get('max_attempts', 1)
+    self.template = kvargs.get('template', None)
 
   def _run_command(self):
     try:

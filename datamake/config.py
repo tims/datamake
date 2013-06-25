@@ -1,9 +1,10 @@
 import sys
 import json
 import types
+from os import path
 
 import artifacts
-from templates import TaskTemplate, TaskTemplateResolver
+from templates import TaskTemplate
 
 class ConfigError(Exception):
   def __init__(self, message):
@@ -29,6 +30,7 @@ class DatamakeConfig(object):
 
     try:
       version = self.config['version']
+      namespace = self.config.get('namespace', None)
       if version == '1.0':
         for task_info in self.config['tasks']:
           id = task_info['id']
@@ -43,7 +45,7 @@ class DatamakeConfig(object):
 
           parameters.update(override_parameters)
           
-          template = TaskTemplate(id=id, command=command, artifact=artifact, 
+          template = TaskTemplate(namespace=namespace, id=id, command=command, artifact=artifact, 
             verify=verify, rollback=rollback,
             cleanup=cleanup, parameters=parameters, max_attempts=max_attempts, 
             dependencies=dependencies)
@@ -54,4 +56,3 @@ class DatamakeConfig(object):
       raise ConfigError("Key error, could not find {0}".format(str(e)))
 
     return task_templates
-
