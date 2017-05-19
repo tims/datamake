@@ -3,8 +3,10 @@ pipeline {
   stages {
     stage('Test') {
       steps {
-        sh 'pip install -r requirements.txt'
-        sh 'python setup.py test'
+        sh 'virtualenv env'
+        sh '''env/bin/pip install -r requirements.txt
+'''
+        sh 'env/bin/python setup.py test'
       }
     }
   }
